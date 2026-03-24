@@ -17,7 +17,6 @@
 package org.sonar.python.semantic.v2.types.typecalculator;
 
 import java.util.Optional;
-import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.QualifiedExpression;
 import org.sonar.plugins.python.api.types.v2.FullyQualifiedNameHelper;
