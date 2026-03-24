@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Annotated, Union
 from typing import Union as u
 import typing
 import typing as t
@@ -40,8 +40,7 @@ class MyClass:
         pass
 
 
-# There is no clear recommendation on this case, so we will just not handle them for the time being.
-def union_in_generic_type() -> list[Union[int, str]]: # FN
+def union_in_generic_type() -> list[Union[int, str]]: # Noncompliant
     pass
 
 def ok(param: int | str) -> int | str:
@@ -66,3 +65,13 @@ def unknown_return_type() -> unknown:
 
 def unknown_return_type_subscript() -> unknown[int, str]:
     pass
+
+variable: Annotated[int | str, "metadata"]
+
+top_level: Annotated[float | bytes, "info"]
+
+def annotated_param(value: Annotated[int | str, "description"]) -> None:
+    pass
+
+def annotated_return() -> Annotated[int | str, "result"]:
+    return 42

@@ -16,6 +16,7 @@
  */
 package org.sonar.python.checks;
 
+import java.util.function.Predicate;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.PythonVersionUtils;
@@ -23,13 +24,15 @@ import org.sonar.plugins.python.api.SubscriptionContext;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.TypeAnnotation;
-import org.sonar.plugins.python.api.types.InferredType;
-import org.sonar.python.types.InferredTypes;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
+import org.sonar.python.tree.TreeUtils;
 
 @Rule(key = "S6546")
 public class UnionTypeExpressionCheck extends PythonSubscriptionCheck {
 
   private static final String MESSAGE = "Use a union type expression for this type hint.";
+  private static final TypeMatcher TYPING_UNION_MATCHER = TypeMatchers.isType("typing.Union");
 
   @Override
   public void initialize(Context context) {
@@ -45,13 +48,9 @@ public class UnionTypeExpressionCheck extends PythonSubscriptionCheck {
 
     TypeAnnotation typeAnnotation = (TypeAnnotation) ctx.syntaxNode();
     Expression expression = typeAnnotation.expression();
-    if (expression.is(Tree.Kind.BITWISE_OR)) {
-      return;
-    }
 
-    InferredType type = InferredTypes.fromTypeAnnotation(typeAnnotation);
-    String fqn = InferredTypes.fullyQualifiedTypeName(type);
-    if ("typing.Union".equals(fqn)) {
+    Predicate<Tree> isUnionName = n -> n.is(Tree.Kind.NAME) && TYPING_UNION_MATCHER.isTrueFor((Expression) n, ctx);
+    if (isUnionName.test(expression) || TreeUtils.hasDescendant(expression, isUnionName)) {
       ctx.addIssue(expression, MESSAGE);
     }
   }
