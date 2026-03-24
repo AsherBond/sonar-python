@@ -56,3 +56,41 @@ class Coordinate:
 
   def _v(self):
     ...
+
+class TestMixin:
+    @classmethod
+    def setUpTestData(cls):
+        pass
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    @classmethod
+    def setUpClass(cls):
+        pass
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
+class TestMixinWithObjectBase(object):
+    def setUp(self):  # OK, whitelisted lifecycle method even in class inheriting from object
+        pass
+
+    def tearDown(self):  # OK, whitelisted lifecycle method
+        pass
+
+    @classmethod
+    def setUpClass(cls):  # OK, whitelisted lifecycle method
+        pass
+
+    @classmethod
+    def tearDownClass(cls):  # OK, whitelisted lifecycle method
+        pass
+
+    @classmethod
+    def setUpTestData(cls):  # OK, whitelisted lifecycle method
+        pass

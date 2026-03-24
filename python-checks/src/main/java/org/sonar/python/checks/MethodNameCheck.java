@@ -16,6 +16,7 @@
  */
 package org.sonar.python.checks;
 
+import java.util.Set;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.tree.FunctionDef;
 
@@ -26,6 +27,8 @@ import static org.sonar.python.checks.utils.CheckUtils.getParentClassDef;
 public class MethodNameCheck extends AbstractFunctionNameCheck {
   public static final String CHECK_KEY = "S100";
 
+  private static final Set<String> WHITELIST = Set.of("setUp", "tearDown", "setUpClass", "tearDownClass", "setUpTestData");
+
   @Override
   public String typeName() {
     return "method";
@@ -33,6 +36,8 @@ public class MethodNameCheck extends AbstractFunctionNameCheck {
 
   @Override
   public boolean shouldCheckFunctionDeclaration(FunctionDef pyFunctionDefTree) {
-    return pyFunctionDefTree.isMethodDefinition() && !classHasInheritance(getParentClassDef(pyFunctionDefTree));
+    return pyFunctionDefTree.isMethodDefinition()
+      && !classHasInheritance(getParentClassDef(pyFunctionDefTree))
+      && !WHITELIST.contains(pyFunctionDefTree.name().name());
   }
 }

@@ -105,7 +105,10 @@ public class CheckUtils {
     return null;
   }
 
-  public static boolean classHasInheritance(ClassDef classDef) {
+  public static boolean classHasInheritance(@Nullable ClassDef classDef) {
+    if (classDef == null) {
+      return false;
+    }
     ArgList argList = classDef.args();
     if (argList == null) {
       return false;
