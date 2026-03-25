@@ -41,4 +41,24 @@ public class OpenSourceRepositoryInfoProvider implements RepositoryInfoProvider 
       IPynbRuleRepository.DISABLED_RULES
     );
   }
+
+  @Override
+  public RepositoryInfo getAIProfileInfo() {
+    return new RepositoryInfo(
+      PythonRuleRepository.REPOSITORY_KEY,
+      OpenSourceCheckList.AI_QUALITY_PROFILE_LOCATION,
+      new OpenSourceCheckList().getChecks().toList(),
+      Set.of()
+    );
+  }
+
+  @Override
+  public RepositoryInfo getIPynbAIProfileInfo() {
+    return new RepositoryInfo(
+      IPynbRuleRepository.IPYTHON_REPOSITORY_KEY,
+      OpenSourceCheckList.AI_QUALITY_PROFILE_LOCATION,
+      new OpenSourceCheckList().getChecks().toList(),
+      IPynbRuleRepository.DISABLED_RULES
+    );
+  }
 }

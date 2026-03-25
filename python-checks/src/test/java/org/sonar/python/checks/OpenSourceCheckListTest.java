@@ -82,7 +82,7 @@ class OpenSourceCheckListTest {
   void validate_sqKey_field_in_json() throws IOException {
     try (Stream<Path> fileStream = Files.find(METADATA_DIR, 1, (path, attr) -> path.toString().endsWith(".json"))) {
       List<Path> jsonList = fileStream
-        .filter(path -> !path.toString().endsWith("Sonar_way_profile.json"))
+        .filter(path -> !path.toString().endsWith("_profile.json"))
         .sorted()
         .toList();
 
@@ -108,7 +108,7 @@ class OpenSourceCheckListTest {
       List<String> keysInDefaultProfile = getKeysInDefaultProfile(sonarWayProfilePath);
 
       Set<String> deprecatedKeys = jsonList.stream()
-        .filter(path -> !path.toString().endsWith("Sonar_way_profile.json"))
+        .filter(path -> !path.toString().endsWith("_profile.json"))
         .filter(path1 -> {
           try {
             return isDeprecated(path1);
@@ -135,7 +135,7 @@ class OpenSourceCheckListTest {
     List<String> locallyDeprecatedRules = Arrays.asList("S1523", "S4721");
     try (Stream<Path> fileStream = Files.find(METADATA_DIR, 1, (path, attr) -> path.toString().endsWith(".json"))) {
       Set<String> deprecatedKeys = fileStream
-        .filter(path -> !path.toString().endsWith("Sonar_way_profile.json"))
+        .filter(path -> !path.toString().endsWith("_profile.json"))
         .filter(path1 -> {
           try {
             return isDeprecated(path1);

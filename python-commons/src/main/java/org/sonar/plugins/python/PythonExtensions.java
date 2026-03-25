@@ -76,6 +76,7 @@ public class PythonExtensions {
 
       Python.class,
       PythonProfile.class,
+      AIQualityProfile.class,
 
       PythonSensor.class,
       PythonRuleRepository.class,
@@ -88,6 +89,7 @@ public class PythonExtensions {
       
       IPynb.class,
       IPynbProfile.class,
+      IPynbAIQualityProfile.class,
       IPynbSensor.class,
       IPynbRuleRepository.class,
       OpenSourceRepositoryInfoProvider.class

@@ -30,6 +30,8 @@ import org.sonarsource.api.sonarlint.SonarLintSide;
 public interface RepositoryInfoProvider {
   RepositoryInfo getInfo();
   RepositoryInfo getIPynbInfo();
+  RepositoryInfo getAIProfileInfo();
+  RepositoryInfo getIPynbAIProfileInfo();
 
   record RepositoryInfo(String repositoryKey, String profileLocation, List<Class<?>> checks, Set<String> disabledRules) {
   }
