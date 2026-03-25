@@ -20,7 +20,7 @@ runs:
         echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
 
     - name: Setup orchestrator cache
-      uses: SonarSource/ci-github-actions/cache@v1
+      uses: SonarSource/gh-action_cache@v1
       with:
         path: "~/.sonar/orchestrator/"
         key: "${{ steps.set-paths.outputs.cache-key }}"
