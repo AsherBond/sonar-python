@@ -18,15 +18,15 @@ package org.sonar.python.checks;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.tree.TreeUtils;
 
 @Rule(key = "S6887")
@@ -34,6 +34,8 @@ public class PytzTimeZoneInDatetimeConstructorCheck extends PythonSubscriptionCh
 
   private static final String MESSAGE = "Don't pass a \"pytz.timezone\" to the \"datetime.datetime\" constructor.";
   private static final String SECONDARY_MESSAGE = "The pytz.timezone is created here.";
+  private static final TypeMatcher DATETIME_DATETIME = TypeMatchers.isType("datetime.datetime");
+  private static final TypeMatcher PYTZ_TIMEZONE = TypeMatchers.isType("pytz.timezone");
 
   @Override
   public void initialize(Context context) {
@@ -42,9 +44,8 @@ public class PytzTimeZoneInDatetimeConstructorCheck extends PythonSubscriptionCh
 
   private static void checkCallExpression(SubscriptionContext context) {
     CallExpression callExpression = (CallExpression) context.syntaxNode();
-    Symbol calleeSymbol = callExpression.calleeSymbol();
 
-    if (calleeSymbol != null && "datetime.datetime".equals(calleeSymbol.fullyQualifiedName())) {
+    if (DATETIME_DATETIME.isTrueFor(callExpression.callee(), context)) {
       RegularArgument argument = TreeUtils.nthArgumentOrKeyword(7, "tzinfo", callExpression.arguments());
       if (argument == null) {
         return;
@@ -56,8 +57,7 @@ public class PytzTimeZoneInDatetimeConstructorCheck extends PythonSubscriptionCh
   private static void checkArgument(RegularArgument argument, SubscriptionContext context) {
     if (argument.expression().is(Tree.Kind.CALL_EXPR)) {
       CallExpression callExpression = (CallExpression) argument.expression();
-      Symbol calleeSymbol = callExpression.calleeSymbol();
-      if (!(calleeSymbol != null && "pytz.timezone".equals(calleeSymbol.fullyQualifiedName()))) {
+      if (!PYTZ_TIMEZONE.isTrueFor(callExpression.callee(), context)) {
         return;
       }
       context.addIssue(argument, MESSAGE);
@@ -65,7 +65,7 @@ public class PytzTimeZoneInDatetimeConstructorCheck extends PythonSubscriptionCh
       List<CallExpression> allSecondaryLocations = context.valuesAtLocation((Name) argument.expression()).stream()
         .filter(expression -> expression.is(Tree.Kind.CALL_EXPR))
         .map(CallExpression.class::cast)
-        .filter(call -> Optional.ofNullable(call.calleeSymbol()).map(symbol ->"pytz.timezone".equals(symbol.fullyQualifiedName())).orElse(false))
+        .filter(call -> PYTZ_TIMEZONE.isTrueFor(call.callee(), context))
         .sorted(Comparator.comparingInt(call -> call.firstToken().line()))
         .toList();
 

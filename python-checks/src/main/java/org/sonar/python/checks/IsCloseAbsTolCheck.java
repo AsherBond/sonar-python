@@ -22,13 +22,14 @@ import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
 import org.sonar.plugins.python.api.quickfix.PythonQuickFix;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.NumericLiteral;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.checks.utils.Expressions;
 import org.sonar.python.quickfix.TextEditUtils;
 import org.sonar.python.tree.TreeUtils;
@@ -39,6 +40,7 @@ public class IsCloseAbsTolCheck extends PythonSubscriptionCheck {
   private static final String MESSAGE = "Provide the \"abs_tol\" parameter when using \"math.isclose\" to compare a value to 0.";
   private static final String SECONDARY_LOCATION_MESSAGE = "This argument evaluates to zero.";
   private static final String QUICK_FIX_MESSAGE = "Add the \"abs_tol\" parameter.";
+  private static final TypeMatcher MATH_ISCLOSE = TypeMatchers.isType("math.isclose");
 
   @Override
   public void initialize(Context context) {
@@ -47,8 +49,7 @@ public class IsCloseAbsTolCheck extends PythonSubscriptionCheck {
   }
 
   private static void checkForIsCloseAbsTolArgument(SubscriptionContext ctx, CallExpression call) {
-    Symbol symbol = call.calleeSymbol();
-    if (symbol != null && "math.isclose".equals(symbol.fullyQualifiedName())
+    if (MATH_ISCLOSE.isTrueFor(call.callee(), ctx)
       && TreeUtils.argumentByKeyword("abs_tol", call.arguments()) == null) {
       RegularArgument firstArg = TreeUtils.nthArgumentOrKeyword(0, "a", call.arguments());
       RegularArgument secondArg = TreeUtils.nthArgumentOrKeyword(1, "b", call.arguments());

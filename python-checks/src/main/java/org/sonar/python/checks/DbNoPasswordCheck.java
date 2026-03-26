@@ -16,14 +16,12 @@
  */
 package org.sonar.python.checks;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.Argument;
 import org.sonar.plugins.python.api.tree.AssignmentStatement;
 import org.sonar.plugins.python.api.tree.CallExpression;
@@ -34,6 +32,8 @@ import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.StringLiteral;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.Tree.Kind;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 
 import static org.sonar.plugins.python.api.tree.Tree.Kind.ASSIGNMENT_STMT;
 import static org.sonar.plugins.python.api.tree.Tree.Kind.CALL_EXPR;
@@ -49,15 +49,19 @@ public class DbNoPasswordCheck extends PythonSubscriptionCheck {
 
   private static final String MESSAGE = "Add password protection to this database.";
 
-  private static final List<String> CONNECT_METHODS = Arrays.asList(
-    "mysql.connector.connect",
-    "mysql.connector.connection.MySQLConnection",
-    "pymysql.connections.connect",
-    "psycopg2.connect",
-    "pgdb.connect.connect",
-    "pg.DB",
-    "pg.connect"
-  );
+  private static final TypeMatcher PG_MATCHER = TypeMatchers.any(
+    TypeMatchers.isType("pg.db.DB"),
+    TypeMatchers.isType("pg.connect"));
+
+  private static final TypeMatcher CONNECT_MATCHER = TypeMatchers.any(
+    TypeMatchers.isType("mysql.connector.connect"),
+    TypeMatchers.isType("mysql.connector.connection.MySQLConnection"),
+    TypeMatchers.isType("pymysql.connections.connect"),
+    TypeMatchers.isType("psycopg2.connect"),
+    // pgdb.connect is a module whose connect function has FQN pgdb.connect.connect.
+    // isType can't resolve it through the type table, so use withFQN to match on the FQN directly.
+    TypeMatchers.withFQN("pgdb.connect.connect"),
+    PG_MATCHER);
 
   private static final Pattern CONNECTION_URI_PATTERN =
     Pattern.compile("^(?:postgresql|mysql|oracle|mssql)(?:\\+.+?)?://.+?(:.*)?@.+");
@@ -83,17 +87,17 @@ public class DbNoPasswordCheck extends PythonSubscriptionCheck {
 
   private static void checkDbApi(SubscriptionContext ctx) {
     CallExpression callExpr = (CallExpression) ctx.syntaxNode();
-    Symbol symbol = callExpr.calleeSymbol();
-    if (symbol != null && CONNECT_METHODS.contains(symbol.fullyQualifiedName())) {
-      RegularArgument passwordArgument = getPasswordArgument(symbol.fullyQualifiedName(), callExpr.arguments());
-      if (passwordArgument != null && isString(passwordArgument.expression(), "")) {
-        ctx.addIssue(passwordArgument, MESSAGE);
-      }
+    if (!CONNECT_MATCHER.isTrueFor(callExpr.callee(), ctx)) {
+      return;
+    }
+    boolean isPg = PG_MATCHER.isTrueFor(callExpr.callee(), ctx);
+    RegularArgument passwordArgument = getPasswordArgument(isPg, callExpr.arguments());
+    if (passwordArgument != null && isString(passwordArgument.expression(), "")) {
+      ctx.addIssue(passwordArgument, MESSAGE);
     }
   }
 
-  private static RegularArgument getPasswordArgument(String method, List<Argument> arguments) {
-    boolean isPg = method.startsWith("pg.");
+  private static RegularArgument getPasswordArgument(boolean isPg, List<Argument> arguments) {
     String argumentKeyword = isPg ? "passwd" : "password";
     int passwordIndex = isPg ? 5 : 2;
     int positionalIndex = 0;

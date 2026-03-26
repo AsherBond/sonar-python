@@ -23,7 +23,6 @@ import java.util.regex.Pattern;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.Argument;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.Expression;
@@ -32,6 +31,8 @@ import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.StringElement;
 import org.sonar.plugins.python.api.tree.StringLiteral;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.checks.utils.Expressions;
 import org.sonar.python.tree.TreeUtils;
 
@@ -41,13 +42,13 @@ public class InvalidOpenModeCheck extends PythonSubscriptionCheck {
   private static final String VALID_MODES = "rwatb+Ux";
   private static final Pattern INVALID_CHARACTERS = Pattern.compile("[^" + VALID_MODES + "]");
   private static final String MESSAGE = "Fix this invalid mode string.";
+  private static final TypeMatcher OPEN_MATCHER = TypeMatchers.isType("open");
 
   @Override
   public void initialize(Context context) {
     context.registerSyntaxNodeConsumer(Tree.Kind.CALL_EXPR, ctx -> {
       CallExpression callExpression = (CallExpression) ctx.syntaxNode();
-      Symbol calleeSymbol = callExpression.calleeSymbol();
-      if (calleeSymbol == null || !"open".equals(calleeSymbol.fullyQualifiedName())) {
+      if (!OPEN_MATCHER.isTrueFor(callExpression.callee(), ctx)) {
         return;
       }
       List<Argument> arguments = callExpression.arguments();

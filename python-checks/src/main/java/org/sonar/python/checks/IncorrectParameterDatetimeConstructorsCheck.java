@@ -19,7 +19,6 @@ package org.sonar.python.checks;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.Name;
@@ -27,6 +26,8 @@ import org.sonar.plugins.python.api.tree.NumericLiteral;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.UnaryExpression;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.checks.utils.Expressions;
 import org.sonar.python.tree.TreeUtils;
 
@@ -36,6 +37,9 @@ public class IncorrectParameterDatetimeConstructorsCheck extends PythonSubscript
   private static final int MAX_YEAR = 9999;
   private static final String MESSAGE = "Provide a correct value for the `%s` parameter.";
   private static final String MESSAGE_SECONDARY_LOCATION = "An invalid value is assigned here.";
+  private static final TypeMatcher DATE_MATCHER = TypeMatchers.isType("datetime.date");
+  private static final TypeMatcher TIME_MATCHER = TypeMatchers.isType("datetime.time");
+  private static final TypeMatcher DATETIME_MATCHER = TypeMatchers.isType("datetime.datetime");
 
   @Override
   public void initialize(Context context) {
@@ -44,15 +48,12 @@ public class IncorrectParameterDatetimeConstructorsCheck extends PythonSubscript
 
   private static void checkCallExpr(SubscriptionContext context) {
     CallExpression callExpression = (CallExpression) context.syntaxNode();
-    Symbol calleeSymbol = callExpression.calleeSymbol();
-    if (calleeSymbol == null) {
-      return;
-    }
-    if ("datetime.date".equals(calleeSymbol.fullyQualifiedName())) {
+    Expression callee = callExpression.callee();
+    if (DATE_MATCHER.isTrueFor(callee, context)) {
       checkDate(context, callExpression);
-    } else if ("datetime.time".equals(calleeSymbol.fullyQualifiedName())) {
+    } else if (TIME_MATCHER.isTrueFor(callee, context)) {
       checkTime(context, callExpression);
-    } else if ("datetime.datetime".equals(calleeSymbol.fullyQualifiedName())) {
+    } else if (DATETIME_MATCHER.isTrueFor(callee, context)) {
       checkDate(context, callExpression);
       checkTime(context, callExpression, 3);
     }
