@@ -1,0 +1,24 @@
+{
+  "title": "Classes should not inherit from the same base class multiple times",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "confusing",
+    "suspicious"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8509",
+  "sqKey": "S8509",
+  "scope": "All",
+  "quickfix": "unknown"
+}

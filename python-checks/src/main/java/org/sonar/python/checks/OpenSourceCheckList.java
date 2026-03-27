@@ -200,6 +200,7 @@ public class OpenSourceCheckList {
       DjangoRenderContextCheck.class,
       DoublePrefixOperatorCheck.class,
       DuplicateArgumentCheck.class,
+      DuplicateBaseClassCheck.class,
       DuplicatedMethodFieldNamesCheck.class,
       DuplicatedMethodImplementationCheck.class,
       DuplicatesInCharacterClassCheck.class,
