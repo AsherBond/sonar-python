@@ -440,6 +440,7 @@ public class OpenSourceCheckList {
       TrailingCommentCheck.class,
       TrailingWhitespaceCheck.class,
       TypeAliasAnnotationCheck.class,
+      TypeVarCovariantAndContravariantCheck.class,
       TfFunctionDependOnOutsideVariableCheck.class,
       TfFunctionRecursivityCheck.class,
       TfInputShapeOnModelSubclassCheck.class,

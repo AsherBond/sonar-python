@@ -1,0 +1,41 @@
+<p>This rule raises an issue when a <code>TypeVar</code> is declared with both <code>covariant=True</code> and <code>contravariant=True</code>.</p>
+<h2>Why is this an issue?</h2>
+<p>A <code>TypeVar</code> in Python represents a type variable used in generic programming. It can have one of three variance modes:</p>
+<ul>
+  <li><strong>invariant</strong>, the default: the type must match exactly</li>
+  <li><strong>covariant</strong> with <code>covariant=True</code>: the type can be replaced with a subtype</li>
+  <li><strong>contravariant</strong> with <code>contravariant=True</code>: the type can be replaced with a supertype</li>
+</ul>
+<p>These variance modes are mutually exclusive. A type variable cannot be both covariant and contravariant simultaneously because these represent opposite relationships in the type hierarchy. Python's <code>typing</code> module will raise a <code>ValueError</code> at runtime when it encounters such a declaration.</p>
+<h3>What is the potential impact?</h3>
+<ul>
+  <li>Python raises a <code>ValueError</code> when the module is imported, causing the application to crash immediately.</li>
+  <li>Static type checkers cannot analyze the code properly, reducing confidence in the type safety of the codebase.</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Choose the appropriate variance mode for your type variable:</p>
+<ul>
+  <li>if you need covariance to allow subtypes, use only <code>covariant=True</code></li>
+  <li>if you need contravariance to allow supertypes, use only <code>contravariant=True</code></li>
+  <li>if you need exact type matching, omit both parameters for the default invariant behavior</li>
+</ul>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+from typing import TypeVar
+
+T = TypeVar('T', covariant=True, contravariant=True)  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+from typing import TypeVar
+
+T_co = TypeVar('T_co', covariant=True)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/typing.html#typing.TypeVar"><code>TypeVar</code></a></li>
+  <li>PEP 484 - <a href="https://peps.python.org/pep-0484/#covariance-and-contravariance">Covariance and Contravariance</a></li>
+  <li>Mypy - <a href="https://mypy.readthedocs.io/en/stable/generics.html#variance-of-generic-types">Variance of generic types</a></li>
+</ul>

@@ -1,0 +1,15 @@
+{
+  "title": "TypeVars should not be both covariant and contravariant",
+  "type": "BUG",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [],
+  "defaultSeverity": "Blocker",
+  "ruleSpecification": "RSPEC-8515",
+  "sqKey": "S8515",
+  "scope": "All",
+  "quickfix": "unknown"
+}
