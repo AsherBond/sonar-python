@@ -12,11 +12,13 @@ runs:
     - name: Calculate orchestrator cache key
       id: set-paths
       shell: bash
+      env:
+        SQ_VERSION: ${{ inputs.sq-version }}
       run: |
         # Get current month for cache rotation
         CURRENT_MONTH=$(date +"%B")
 
-        CACHE_KEY="orchestrator-${{ github.workflow }}-${{ inputs.sq-version }}-${CURRENT_MONTH}"
+        CACHE_KEY="orchestrator-${{ github.workflow }}-${SQ_VERSION}-${CURRENT_MONTH}"
         echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
 
     - name: Setup orchestrator cache
