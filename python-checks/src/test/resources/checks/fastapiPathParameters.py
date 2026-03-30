@@ -1,4 +1,6 @@
-from fastapi import FastAPI, APIRouter
+import typing
+from fastapi import FastAPI, APIRouter, Depends
+from typing import Annotated
 
 app = FastAPI()
 router = APIRouter()
@@ -167,3 +169,91 @@ def compliant_empty_path():
 @app.get(True)
 def compliant_path_is_not_a_string():
     pass
+
+# --- Depends() path parameter delegation ---
+
+def get_item(item_id: int):
+    return {"item_id": item_id}
+
+@router.get("/items/{item_id}")
+def compliant_depends_default_value(item=Depends(get_item)):
+    return item
+
+@app.get("/items/{item_id}")
+def compliant_depends_annotated(item: Annotated[dict, Depends(get_item)]):
+    return item
+
+@app.get("/users/{user_id}/items/{item_id}")
+def compliant_depends_partial(user_id: int, item=Depends(get_item)):
+    return {"user_id": user_id, "item": item}
+
+async def get_item_async(item_id: int):
+    return {"item_id": item_id}
+
+@router.get("/items/{item_id}")
+def compliant_depends_async_dependency(item=Depends(get_item_async)):
+    return item
+
+def dep_without_item_id(name: str):
+    return name
+
+@app.get("/items/{item_id}")
+def noncompliant_depends_param_not_in_dep(item=Depends(dep_without_item_id)):  # Noncompliant {{Add path parameter "item_id" to the function signature.}}
+    return item
+
+@app.get("/items/{item_id}")
+def compliant_depends_annotated_qualified(item: typing.Annotated[dict, Depends(get_item)]):
+    return item
+
+# --- Nested/recursive Depends() ---
+
+def get_item_wrapper(item=Depends(get_item)):
+    return item
+
+@router.get("/items/{item_id}")
+def compliant_nested_depends(item=Depends(get_item_wrapper)):
+    return item
+
+def get_item_annotated_wrapper(item: Annotated[dict, Depends(get_item)]):
+    return item
+
+@app.get("/items/{item_id}")
+def compliant_nested_depends_annotated(item=Depends(get_item_annotated_wrapper)):
+    return item
+
+def dep_level2_no_id(name: str):
+    return name
+
+def dep_level1_no_id(x=Depends(dep_level2_no_id)):
+    return x
+
+@app.get("/items/{item_id}")
+def noncompliant_nested_depends_not_covering(item=Depends(dep_level1_no_id)):  # Noncompliant {{Add path parameter "item_id" to the function signature.}}
+    return item
+
+# --- Circular dependency detection (cycle in Depends chain) ---
+# dep_b_circular references dep_a_circular (defined below) - tests cycle detection at line 112
+def dep_b_circular(dep=Depends(dep_a_circular)):
+    return dep
+
+def dep_a_circular(item_id: int, dep=Depends(dep_b_circular)):
+    return item_id
+
+@app.get("/items/{item_id}")
+def compliant_circular_depends(dep=Depends(dep_a_circular)):
+    return dep
+
+# --- QualifiedExpression as Depends argument (tests lines 164-165 and 174) ---
+class ItemDepsHolder:
+    @staticmethod
+    def get_item(item_id: int):
+        return item_id
+
+@app.get("/items/{item_id}")
+def compliant_qualified_expr_depends(dep=Depends(ItemDepsHolder.get_item)):
+    return dep
+
+# --- Non-Name/non-QualifiedExpression as Depends argument (tests lines 167 and 170) ---
+@app.get("/items/{item_id}")
+def noncompliant_lambda_depends(dep=Depends(lambda: None)):  # Noncompliant {{Add path parameter "item_id" to the function signature.}}
+    return dep
