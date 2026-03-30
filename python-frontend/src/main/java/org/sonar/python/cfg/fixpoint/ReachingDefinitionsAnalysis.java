@@ -37,12 +37,14 @@ import org.sonar.plugins.python.api.tree.AnnotatedAssignment;
 import org.sonar.plugins.python.api.tree.AssignmentStatement;
 import org.sonar.plugins.python.api.tree.BaseTreeVisitor;
 import org.sonar.plugins.python.api.tree.Expression;
+import org.sonar.plugins.python.api.tree.FileInput;
 import org.sonar.plugins.python.api.tree.FunctionDef;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.python.tree.TreeUtils;
 
 import static org.sonar.plugins.python.api.tree.Tree.Kind.ASSIGNMENT_STMT;
+import static org.sonar.plugins.python.api.tree.Tree.Kind.CLASSDEF;
 import static org.sonar.plugins.python.api.tree.Tree.Kind.FUNCDEF;
 import static org.sonar.plugins.python.api.tree.Tree.Kind.TRY_STMT;
 
@@ -74,15 +76,36 @@ public class ReachingDefinitionsAnalysis {
       return assignedExpressions;
     }
     FunctionDef enclosingFunction = (FunctionDef) TreeUtils.firstAncestorOfKind(variable, FUNCDEF);
-    if (enclosingFunction == null || TreeUtils.hasDescendant(enclosingFunction, t -> t.is(TRY_STMT))) {
+    if (enclosingFunction != null) {
+      return valuesInFunctionScope(variable, enclosingFunction);
+    }
+
+    FileInput fileInput = TreeUtils.firstAncestorOfClass(variable, FileInput.class);
+    if (fileInput == null) {
       return Collections.emptySet();
     }
-    ControlFlowGraph cfg = ControlFlowGraph.build(enclosingFunction, pythonFile);
+    return analyzeScope(variable, fileInput, () -> ControlFlowGraph.build(fileInput, pythonFile), fileInput.globalVariables());
+  }
+
+  private Set<Expression> valuesInFunctionScope(Name variable, FunctionDef enclosingFunction) {
+    return analyzeScope(variable, enclosingFunction, () -> ControlFlowGraph.build(enclosingFunction, pythonFile), enclosingFunction.localVariables());
+  }
+
+  private Set<Expression> analyzeScope(Name variable, Tree scopeTree, Supplier<ControlFlowGraph> cfgSupplier, Set<Symbol> variables) {
+    if (hasTryStatementInScope(scopeTree)) {
+      return Collections.emptySet();
+    }
+    ControlFlowGraph cfg = cfgSupplier.get();
     if (cfg == null) {
       return Collections.emptySet();
     }
-    compute(cfg, enclosingFunction.localVariables());
+    compute(cfg, variables);
     return assignedExpressionByName.getOrDefault(variable, Collections.emptySet());
+  }
+
+  private static boolean hasTryStatementInScope(Tree tree) {
+    return tree.children().stream().anyMatch(child ->
+      child.is(TRY_STMT) || (!child.is(FUNCDEF, CLASSDEF) && hasTryStatementInScope(child)));
   }
 
   private Set<Expression> getAssignedExpressions(Name variable, ProgramStateAtElement programStateAtElement) {

@@ -13,7 +13,9 @@ def timezone_in_a_variable():
     return dt1
 
 some_timezone_1 = pytz.timezone('US/Eastern')
-dt1 = datetime.datetime(2022, 1, 1, tzinfo=some_timezone_1)  # FN because of ReachingDefinitionsAnalysis limitations : it only runs in functions
+                 #^^^^^^^^^^^^^^^^^^^^^^^^^^^> 1 {{The pytz.timezone is created here.}}
+dt1 = datetime.datetime(2022, 1, 1, tzinfo=some_timezone_1)  # Noncompliant {{Don't pass a "pytz.timezone" to the "datetime.datetime" constructor.}}
+                                   #^^^^^^^^^^^^^^^^^^^^^^
 
 def compliant():
     other_timezone = datetime.timezone(datetime.timedelta(hours=2))

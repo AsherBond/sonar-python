@@ -82,18 +82,49 @@ class ReachingDefinitionsAnalysisTest {
   @Test
   void valuesAtLocation_outside_function() {
     Name x = (Name) lastExpression("x = 42; x");
-    assertThat(analysis.valuesAtLocation(x)).isEmpty();
+    assertThat(analysis.valuesAtLocation(x)).extracting(ReachingDefinitionsAnalysisTest::getValueAsString).containsExactly("42");
   }
 
   @Test
   void valuesAtLocation_outside_function_annotated() {
     Name x = (Name) lastExpression("x: int = 42; x");
+    assertThat(analysis.valuesAtLocation(x)).extracting(ReachingDefinitionsAnalysisTest::getValueAsString).containsExactly("42");
+  }
+
+  @Test
+  void valuesAtLocation_outside_function_branches() {
+    Name x = (Name) lastExpression(
+      "if p:",
+      "  x = 1",
+      "else:",
+      "  x = 2",
+      "x"
+    );
+    assertThat(analysis.valuesAtLocation(x)).extracting(ReachingDefinitionsAnalysisTest::getValueAsString).containsExactlyInAnyOrder("1", "2");
+  }
+
+  @Test
+  void valuesAtLocation_outside_function_try_stmt() {
+    Name x = (Name) lastExpression(
+      "x = 1",
+      "try:",
+      "  x = 2",
+      "except:",
+      "  pass",
+      "x"
+    );
     assertThat(analysis.valuesAtLocation(x)).isEmpty();
   }
 
   @Test
   void valuesAtLocation_invalid_cfg() {
     Name x = (Name) lastExpressionInFunction("x = 42", "break", "x");
+    assertThat(analysis.valuesAtLocation(x)).isEmpty();
+  }
+
+  @Test
+  void valuesAtLocation_outside_function_invalid_cfg() {
+    Name x = (Name) lastExpression("x = 42", "break", "x");
     assertThat(analysis.valuesAtLocation(x)).isEmpty();
   }
 
@@ -156,6 +187,34 @@ class ReachingDefinitionsAnalysisTest {
   void compound_assignments() {
     Name x = (Name) lastExpressionInFunction("x = 42; x += 1; x");
     assertThat(analysis.valuesAtLocation(x)).isEmpty();
+  }
+
+  @Test
+  void try_stmt_in_nested_function() {
+    Name x = (Name) lastExpressionInFunction(
+      "x = 1",
+      "def inner():",
+      "  try:",
+      "    pass",
+      "  except:",
+      "    pass",
+      "x"
+    );
+    assertThat(analysis.valuesAtLocation(x)).extracting(ReachingDefinitionsAnalysisTest::getValueAsString).containsExactly("1");
+  }
+
+  @Test
+  void valuesAtLocation_outside_function_try_stmt_in_nested_function() {
+    Name x = (Name) lastExpression(
+      "x = 1",
+      "def f():",
+      "  try:",
+      "    pass",
+      "  except:",
+      "    pass",
+      "x"
+    );
+    assertThat(analysis.valuesAtLocation(x)).extracting(ReachingDefinitionsAnalysisTest::getValueAsString).containsExactly("1");
   }
 
   @Test

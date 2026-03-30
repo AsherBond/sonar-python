@@ -215,4 +215,30 @@ class SubscriptionVisitorTest {
       .withFailMessage("valuesAtLocation was not called by both checks")
       .isZero();
   }
+
+  @Test
+  void reachingDefinitionAnalysis_at_module_level() {
+    var latch = new CountDownLatch(1);
+
+    var check = new PythonSubscriptionCheck() {
+      @Override
+      public void initialize(Context context) {
+        context.registerSyntaxNodeConsumer(Tree.Kind.EXPRESSION_STMT, ctx -> {
+          var exprStmt = (ExpressionStatement) ctx.syntaxNode();
+          var expr = exprStmt.expressions().get(0);
+          if (expr instanceof Name name && "x".equals(name.name())) {
+            assertThat(ctx.valuesAtLocation(name)).extracting(e -> ((NumericLiteral) e).valueAsString()).containsExactly("42");
+            latch.countDown();
+          }
+        });
+      }
+    };
+
+    var fileInput = PythonTestUtils.parse("x = 42\nx");
+    var context = new Builder(fileInput, PythonTestUtils.pythonFile("file")).build();
+    SubscriptionVisitor.analyze(List.of(check), context);
+    assertThat(latch.getCount())
+      .withFailMessage("valuesAtLocation was not called at module level")
+      .isZero();
+  }
 }
