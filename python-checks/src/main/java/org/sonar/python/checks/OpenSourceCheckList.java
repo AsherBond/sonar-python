@@ -187,6 +187,7 @@ public class OpenSourceCheckList {
       DedicatedAssertionCheck.class,
       DefaultFactoryArgumentCheck.class,
       DeprecatedNumpyTypesCheck.class,
+      DictKeysMembershipTestCheck.class,
       DictionaryDuplicateKeyCheck.class,
       DictionaryStaticKeyCheck.class,
       DirectTypeComparisonCheck.class,

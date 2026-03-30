@@ -1,0 +1,15 @@
+{
+  "title": "Dictionary membership tests should not explicitly call \".keys()\"",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-8521",
+  "sqKey": "S8521",
+  "scope": "All",
+  "quickfix": "unknown"
+}

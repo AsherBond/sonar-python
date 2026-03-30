@@ -1,0 +1,35 @@
+<p>This rule raises an issue when <code>.keys()</code> is called explicitly on a dictionary for membership testing.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, dictionaries support direct membership testing without needing to explicitly call the <code>.keys()</code> method. When you write
+<code>key in dict.keys()</code>, you are being unnecessarily verbose.</p>
+<p>The expression <code>key in dict</code> is the idiomatic Python way to check for key membership. It is:</p>
+<ul>
+  <li><em>more readable</em>: the intent is clearer and the code is shorter</li>
+  <li><em>slightly more efficient</em>: it avoids creating an intermediate dictionary view object</li>
+  <li><em>more Pythonic</em>: it follows Python's principle of having one obvious way to do it</li>
+</ul>
+<p>The <code>.keys()</code> method exists primarily for cases where you need to perform set operations on dictionary keys or when you need an explicit
+view object. For simple membership testing, it is redundant because dictionaries are designed to support the <code>in</code> operator directly.</p>
+<h2>How to fix it</h2>
+<p>Remove the <code>.keys()</code> call and use direct membership testing on the dictionary.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+my_dict = {'a': 1, 'b': 2, 'c': 3}
+
+if 'a' in my_dict.keys():  # Noncompliant
+    print('Found')
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+my_dict = {'a': 1, 'b': 2, 'c': 3}
+
+if 'a' in my_dict:
+    print('Found')
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#mapping-types-dict">Mapping Types — dict</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#dictionary-view-objects">Dictionary view objects</a></li>
+</ul>
