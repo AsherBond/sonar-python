@@ -23,7 +23,7 @@ import org.sonarsource.analyzer.commons.BuiltInQualityProfileJsonLoader;
 
 public class IPynbAIQualityProfile implements BuiltInQualityProfilesDefinition {
 
-  static final String PROFILE_NAME = "AI quality profile";
+  static final String PROFILE_NAME = "Sonar agentic AI";
 
   private final RepositoryInfoProvider[] editionMetadataProviders;
 

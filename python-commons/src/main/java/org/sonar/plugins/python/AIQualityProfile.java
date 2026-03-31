@@ -23,7 +23,7 @@ import org.sonarsource.analyzer.commons.BuiltInQualityProfileJsonLoader;
 
 public class AIQualityProfile implements BuiltInQualityProfilesDefinition {
 
-  static final String PROFILE_NAME = "AI quality profile";
+  static final String PROFILE_NAME = "Sonar agentic AI";
 
   private final RepositoryInfoProvider[] editionMetadataProviders;
 
@@ -39,6 +39,12 @@ public class AIQualityProfile implements BuiltInQualityProfilesDefinition {
       registerRulesForEdition(repositoryInfoProvider, profile);
     }
 
+    PythonProfile.getSecurityRuleKeys()
+      .forEach(key -> profile.activateRule(key.repository(), key.rule()));
+    PythonProfile.getDataflowBugDetectionRuleKeys()
+      .forEach(key -> profile.activateRule(key.repository(), key.rule()));
+    PythonProfile.getArchitectureRuleKeys()
+      .forEach(key -> profile.activateRule(key.repository(), key.rule()));
     profile.done();
   }
 

@@ -111,7 +111,7 @@ public class OpenSourceCheckList {
 
   public static final String RESOURCE_FOLDER = "org/sonar/l10n/py/rules/python";
   public static final String SONAR_WAY_PROFILE_LOCATION = RESOURCE_FOLDER + "/Sonar_way_profile.json";
-  public static final String AI_QUALITY_PROFILE_LOCATION = RESOURCE_FOLDER + "/AI_quality_profile.json";
+  public static final String AI_QUALITY_PROFILE_LOCATION = RESOURCE_FOLDER + "/Sonar_agentic_AI_profile.json";
 
   public Stream<Class<?>> getChecks() {
     return Stream.of(

@@ -29,7 +29,7 @@ class IPynbAIQualityProfileTest {
   public BuiltInQualityProfilesDefinition.BuiltInQualityProfile getProfile() {
     BuiltInQualityProfilesDefinition.Context context = new BuiltInQualityProfilesDefinition.Context();
     new IPynbAIQualityProfile(new RepositoryInfoProvider[]{new OpenSourceRepositoryInfoProvider()}).define(context);
-    return context.profile("ipynb", "AI quality profile");
+    return context.profile("ipynb", "Sonar agentic AI");
   }
 
   @Test

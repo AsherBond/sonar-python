@@ -1,5 +1,5 @@
 {
-  "name": "AI quality profile",
+  "name": "Sonar agentic AI",
   "ruleKeys": [
     "S100",
     "S101",
