@@ -353,7 +353,7 @@ def match_statement_no_fp(value):
   return no_fp_with_match(value + 1)
 
 
-def match_statement_fn(value):  # FN, "case x" will always match
+def match_statement_fn(value):  # Noncompliant
   match value:
     case x:
       return match_statement_fn(value + 1)

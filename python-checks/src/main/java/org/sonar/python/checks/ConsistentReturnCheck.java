@@ -17,7 +17,6 @@
 package org.sonar.python.checks;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
@@ -44,12 +43,12 @@ public class ConsistentReturnCheck extends PythonSubscriptionCheck {
       if (cfg == null || hasExceptOrFinally(cfg)) {
         return;
       }
-      List<Tree> endStatements = cfg.end().predecessors().stream()
+      List<Statement> endStatements = cfg.end().predecessors().stream()
         .map(block -> parentStatement(block.elements().get(block.elements().size() - 1)))
         .filter(s -> !s.is(Kind.RAISE_STMT, Kind.ASSERT_STMT, Kind.WITH_STMT) && !isWhileTrue(s))
-        .collect(Collectors.toList());
+        .toList();
 
-      List<Tree> returnsWithValue = endStatements.stream()
+      List<Statement> returnsWithValue = endStatements.stream()
         .filter(s -> s.is(Kind.RETURN_STMT) && hasValue((ReturnStatement) s))
         .toList();
 
@@ -68,9 +67,9 @@ public class ConsistentReturnCheck extends PythonSubscriptionCheck {
     return statement.is(Kind.WHILE_STMT) && Expressions.isTruthy(((WhileStatement) statement).condition());
   }
 
-  private static void addIssue(SubscriptionContext ctx, FunctionDef functionDef, List<Tree> endStatements) {
+  private static void addIssue(SubscriptionContext ctx, FunctionDef functionDef, List<Statement> endStatements) {
     PreciseIssue issue = ctx.addIssue(functionDef.name(), MESSAGE);
-    for (Tree statement : endStatements) {
+    for (Statement statement : endStatements) {
       if (statement.is(Kind.RETURN_STMT)) {
         ReturnStatement returnStatement = (ReturnStatement) statement;
         boolean hasValue = hasValue(returnStatement);

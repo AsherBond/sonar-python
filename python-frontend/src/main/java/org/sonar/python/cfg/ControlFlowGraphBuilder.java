@@ -204,24 +204,54 @@ public class ControlFlowGraphBuilder {
 
   private PythonCfgBlock buildMatchStatement(MatchStatement statement, PythonCfgBlock successor) {
     List<CaseBlock> caseBlocks = statement.caseBlocks();
-    PythonCfgBlock matchingBlock = null;
-    PythonCfgBlock falseSuccessor = successor;
+    int irrefutableIdx = findIrrefutableCaseIndex(caseBlocks);
+
+    PythonCfgBlock irrefutableBlock = null;
+    if (irrefutableIdx >= 0) {
+      CaseBlock irrefutableCase = caseBlocks.get(irrefutableIdx);
+      PythonCfgBlock irrefutableBodyBlock = build(irrefutableCase.body().statements(), createSimpleBlock(successor));
+      irrefutableBlock = createSimpleBlock(irrefutableBodyBlock);
+      irrefutableBlock.addElement(irrefutableCase.pattern());
+      irrefutableBlock.addElement(statement.subjectExpression());
+    }
+
+    PythonCfgBlock matchingBlock = irrefutableBlock;
+    PythonCfgBlock falseSuccessor = irrefutableBlock != null ? irrefutableBlock : successor;
     for (int i = caseBlocks.size() - 1; i >= 0; i--) {
-      PythonCfgBlock caseBodyBlock = createSimpleBlock(successor);
+      if (irrefutableIdx >= 0 && i >= irrefutableIdx) {
+        continue;
+      }
+      if (i == irrefutableIdx - 1) {
+        falseSuccessor = irrefutableBlock;
+      }
       CaseBlock caseBlock = caseBlocks.get(i);
       Pattern pattern = caseBlock.pattern();
       Guard guard = caseBlock.guard();
-      caseBodyBlock = build(caseBlock.body().statements(), caseBodyBlock);
+      PythonCfgBlock caseBodyBlock = build(caseBlock.body().statements(), createSimpleBlock(successor));
       matchingBlock = createBranchingBlock(pattern, caseBodyBlock, falseSuccessor);
       if (guard != null) {
         matchingBlock.addElement(guard.condition());
       }
       matchingBlock.addElement(pattern);
       matchingBlock.addElement(statement.subjectExpression());
-      blocks.add(matchingBlock);
-      falseSuccessor = matchingBlock;
+      if (i < irrefutableIdx || irrefutableIdx < 0) {
+        falseSuccessor = matchingBlock;
+      }
     }
     return matchingBlock;
+  }
+
+  private static int findIrrefutableCaseIndex(List<CaseBlock> caseBlocks) {
+    for (int i = 0; i < caseBlocks.size(); i++) {
+      if (isIrrefutablePattern(caseBlocks.get(i))) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static boolean isIrrefutablePattern(CaseBlock caseBlock) {
+    return caseBlock.guard() == null && caseBlock.pattern().is(Tree.Kind.WILDCARD_PATTERN, Tree.Kind.CAPTURE_PATTERN);
   }
 
   private PythonCfgBlock buildWithStatement(WithStatement withStatement, PythonCfgBlock successor) {

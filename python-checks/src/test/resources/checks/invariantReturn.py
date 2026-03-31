@@ -529,7 +529,7 @@ def match_statement_no_fp_with_implicit_return(value):  # OK, implicit "None" re
       return 42
 
 
-def match_statement_fn_with_capture(value): # FN, implicit "None" return is unreachable
+def match_statement_fn_with_capture(value): # Noncompliant
   match value:
     case 1:
       return 42

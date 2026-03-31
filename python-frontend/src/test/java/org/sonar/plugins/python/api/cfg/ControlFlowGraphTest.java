@@ -633,6 +633,126 @@ class ControlFlowGraphTest {
   }
 
   @Test
+  void match_statement_irrefutable_in_middle() {
+    ControlFlowGraph cfg = cfg("""
+      foo()   """,
+      "match x:",
+      "  case \"a\": y()",
+      "  case _: z()",
+      "  case \"b\": w()",
+      "bar()"
+    );
+
+    PythonCfgBranchingBlock start = (PythonCfgBranchingBlock) cfg.start();
+    PythonCfgEndBlock end = (PythonCfgEndBlock) cfg.end();
+    assertThat(end.predecessors()).hasSize(1);
+    CfgBlock barBlock = end.predecessors().stream().findFirst().get();
+
+    // Start block evaluates case "a" (first refutable case before irrefutable)
+    assertThat(start.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.EXPRESSION_STMT, Kind.NAME, Kind.STRING_LITERAL_PATTERN);
+
+    // case "a" body flows to bar
+    PythonCfgSimpleBlock caseABody = (PythonCfgSimpleBlock) start.trueSuccessor();
+    assertThat(caseABody.elements()).extracting(Tree::getKind).containsExactly(Kind.EXPRESSION_STMT);
+    assertThat(caseABody.successors()).containsExactly(barBlock);
+
+    // case "a" false successor is the irrefutable block (case _), not case "b"
+    PythonCfgSimpleBlock irrefutableBlock = (PythonCfgSimpleBlock) start.falseSuccessor();
+    assertThat(irrefutableBlock.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.NAME, Kind.WILDCARD_PATTERN);
+
+    // irrefutable body flows to bar
+    CfgBlock irrefutableBody = irrefutableBlock.successors().stream().findFirst().get();
+    assertThat(irrefutableBody.elements()).extracting(Tree::getKind).containsExactly(Kind.EXPRESSION_STMT);
+    assertThat(irrefutableBody.successors()).containsExactly(barBlock);
+  }
+
+  @Test
+  void match_statement_irrefutable_last() {
+    ControlFlowGraph cfg = cfg("""
+      foo()   """,
+      "match x:",
+      "  case \"a\": y()",
+      "  case _: z()",
+      "bar()"
+    );
+
+    PythonCfgBranchingBlock start = (PythonCfgBranchingBlock) cfg.start();
+    PythonCfgEndBlock end = (PythonCfgEndBlock) cfg.end();
+    assertThat(end.predecessors()).hasSize(1);
+    CfgBlock barBlock = end.predecessors().stream().findFirst().get();
+
+    // case "a" is the only pre-irrefutable case
+    assertThat(start.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.EXPRESSION_STMT, Kind.NAME, Kind.STRING_LITERAL_PATTERN);
+
+    PythonCfgSimpleBlock caseABody = (PythonCfgSimpleBlock) start.trueSuccessor();
+    assertThat(caseABody.successors()).containsExactly(barBlock);
+
+    // case "a" false successor is the irrefutable block (case _), not the post-match successor
+    PythonCfgSimpleBlock irrefutableBlock = (PythonCfgSimpleBlock) start.falseSuccessor();
+    assertThat(irrefutableBlock.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.NAME, Kind.WILDCARD_PATTERN);
+
+    CfgBlock irrefutableBody = irrefutableBlock.successors().stream().findFirst().get();
+    assertThat(irrefutableBody.successors()).containsExactly(barBlock);
+  }
+
+  @Test
+  void match_statement_irrefutable_first() {
+    ControlFlowGraph cfg = cfg("""
+      foo()   """,
+      "match x:",
+      "  case _: y()",
+      "  case \"a\": z()",
+      "bar()"
+    );
+
+    // When the irrefutable case is first, the CFG start is a simple block (no branching needed)
+    PythonCfgSimpleBlock start = (PythonCfgSimpleBlock) cfg.start();
+    PythonCfgEndBlock end = (PythonCfgEndBlock) cfg.end();
+    assertThat(end.predecessors()).hasSize(1);
+    CfgBlock barBlock = end.predecessors().stream().findFirst().get();
+
+    // The start block is the irrefutable block; subsequent unreachable cases are excluded from the CFG
+    assertThat(start.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.EXPRESSION_STMT, Kind.NAME, Kind.WILDCARD_PATTERN);
+
+    CfgBlock irrefutableBody = start.successors().stream().findFirst().get();
+    assertThat(irrefutableBody.elements()).extracting(Tree::getKind).containsExactly(Kind.EXPRESSION_STMT);
+    assertThat(irrefutableBody.successors()).containsExactly(barBlock);
+  }
+
+  @Test
+  void match_statement_guarded_wildcard_is_refutable() {
+    ControlFlowGraph cfg = cfg("""
+      foo()   """,
+      "match x:",
+      "  case \"a\": y()",
+      "  case _ if w(): z()",
+      "bar()"
+    );
+
+    PythonCfgBranchingBlock start = (PythonCfgBranchingBlock) cfg.start();
+    PythonCfgEndBlock end = (PythonCfgEndBlock) cfg.end();
+    assertThat(end.predecessors()).hasSize(1);
+    CfgBlock barBlock = end.predecessors().stream().findFirst().get();
+
+    assertThat(start.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.EXPRESSION_STMT, Kind.NAME, Kind.STRING_LITERAL_PATTERN);
+
+    PythonCfgSimpleBlock caseABody = (PythonCfgSimpleBlock) start.trueSuccessor();
+    assertThat(caseABody.successors()).containsExactly(barBlock);
+
+    // A guarded wildcard is refutable: it still has a false successor (the no-match path)
+    PythonCfgBranchingBlock guardedWildcard = (PythonCfgBranchingBlock) start.falseSuccessor();
+    assertThat(guardedWildcard.elements()).extracting(Tree::getKind)
+      .containsExactly(Kind.NAME, Kind.WILDCARD_PATTERN, Kind.CALL_EXPR);
+    assertThat(guardedWildcard.falseSuccessor()).isEqualTo(barBlock);
+  }
+
+  @Test
   void CFGBlock_toString() {
     PythonCfgEndBlock endBlock = new PythonCfgEndBlock();
     assertThat(endBlock).hasToString("END");

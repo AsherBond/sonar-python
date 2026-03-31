@@ -223,4 +223,4 @@ def match_statement_fn(value):
   match value:
     case "1": return
     case x: return
-  print("unreachable")  # FN, "case x" will match anything
+  print("unreachable")  # Noncompliant
