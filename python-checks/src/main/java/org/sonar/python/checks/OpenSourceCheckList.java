@@ -280,6 +280,7 @@ public class OpenSourceCheckList {
       ImpossibleBackReferenceCheck.class,
       ImpossibleBoundariesCheck.class,
       IncompatibleOperandsCheck.class,
+      InconsistentTupleReturnCheck.class,
       InconsistentTypeHintCheck.class,
       IncorrectExceptionTypeCheck.class,
       IncorrectParameterDatetimeConstructorsCheck.class,

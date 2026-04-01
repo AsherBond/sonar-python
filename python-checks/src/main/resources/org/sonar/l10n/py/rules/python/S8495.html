@@ -1,0 +1,49 @@
+<p>This rule raises an issue when a function returns tuples of different lengths in different code paths.</p>
+<h2>Why is this an issue?</h2>
+<p>When a function returns tuples of varying lengths, it creates an inconsistent API that is difficult to use correctly. Callers cannot reliably
+unpack the return value without checking its length first, which leads to fragile code.</p>
+<p>Consider this example:</p>
+<pre>
+def process_data(value):
+    if value &gt; 0:
+        return (value,)  # Returns a 1-tuple
+    else:
+        return (value, value * 2)  # Returns a 2-tuple
+
+result = process_data(10)
+x, y = result  # ValueError if value &gt; 0!
+</pre>
+<p>This forces callers to add defensive length-checks before unpacking, making the code fragile and harder to maintain. The function signature
+provides no indication that the return type varies, so developers must read the implementation or discover the behavior through runtime errors.</p>
+<p>Consistent return types make code more predictable, easier to test, and less likely to cause unexpected failures in production.</p>
+<h3>What is the potential impact?</h3>
+<p>Runtime errors from tuple unpacking may not surface during initial testing if certain code paths are not fully exercised, leading to production
+failures. The need for defensive length-checking also increases the maintenance burden and makes the API harder to document for new team members.</p>
+<h2>How to fix it</h2>
+<p>Make all return statements return tuples of the same length. Add placeholder values (like <code>None</code> or <code>0</code>) to shorter tuples
+to maintain consistency.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+def calculate_stats(numbers):
+    if not numbers:
+        return (0,)  # Noncompliant
+    total = sum(numbers)
+    average = total / len(numbers)
+    return (total, average)
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+def calculate_stats(numbers):
+    if not numbers:
+        return (0, 0)  # Consistent 2-tuple
+    total = sum(numbers)
+    average = total / len(numbers)
+    return (total, average)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/controlflow.html#more-on-defining-functions">More on Defining Functions</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/datastructures.html#tuples-and-sequences">Tuples and Sequences</a></li>
+</ul>
