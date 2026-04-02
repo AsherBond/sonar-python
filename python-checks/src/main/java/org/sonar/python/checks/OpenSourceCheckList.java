@@ -363,6 +363,7 @@ public class OpenSourceCheckList {
       PrivilegePolicyCheck.class,
       ProcessSignallingCheck.class,
       PropertyAccessorParameterCountCheck.class,
+      PropertyMethodWithoutReturnCheck.class,
       PytzUsageCheck.class,
       PseudoRandomCheck.class,
       PublicApiIsSecuritySensitiveCheck.class,

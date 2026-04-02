@@ -1,0 +1,45 @@
+<p>This rule raises an issue when a method decorated with <code>@property</code> does not contain any <code>return</code> statement.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, the <code>@property</code> decorator transforms a method into a getter for a computed attribute. When you access a property, you expect
+to receive a value, just like accessing a regular attribute.</p>
+<p>A property method without a <code>return</code> statement will implicitly return <code>None</code>. This makes the property useless because it
+always provides <code>None</code> instead of a meaningful value. This behavior is almost always unintentional and indicates a bug in the code.</p>
+<h3>Exceptions</h3>
+<p>This rule does not raise an issue when the property method raises an exception or is decorated with <code>@abstractmethod</code>, as these are
+intentional patterns where a return value is not expected.</p>
+<h3>What is the potential impact?</h3>
+<p>When a property method lacks a return statement, it always returns <code>None</code>. This leads to:</p>
+<ul>
+  <li><strong>logic errors</strong>: code that depends on the property value will behave incorrectly, potentially causing application failures or
+  incorrect results.</li>
+  <li><strong>difficult debugging</strong>: the implicit <code>None</code> return is not obvious from looking at the property access, making bugs
+  harder to trace.</li>
+  <li><strong>API contract violation</strong>: users of the class expect the property to provide meaningful data, but receive <code>None</code>
+  instead, breaking the expected interface.</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Add a <code>return</code> statement to the property method that returns the intended value.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+@property
+def area(self):
+    3.14159 * self._radius ** 2  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+@property
+def area(self):
+    return 3.14159 * self._radius ** 2
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/functions.html#property"><code>property</code></a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/howto/descriptor.html#properties">Properties</a></li>
+</ul>
+<h3>Related rules</h3>
+<ul>
+  <li>{rule:python:S3801} - Functions should use "return" consistently</li>
+</ul>
+
