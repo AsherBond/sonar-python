@@ -4,12 +4,21 @@
   "status": "ready",
   "remediation": {
     "func": "Constant\/Issue",
-    "constantCost": "2min"
+    "constantCost": "1 min"
   },
-  "tags": [],
+  "tags": [
+    "pythonic",
+    "idiom"
+  ],
   "defaultSeverity": "Minor",
   "ruleSpecification": "RSPEC-8521",
   "sqKey": "S8521",
   "scope": "All",
-  "quickfix": "unknown"
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CONVENTIONAL"
+  }
 }

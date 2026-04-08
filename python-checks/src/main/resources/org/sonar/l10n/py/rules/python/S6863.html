@@ -1,4 +1,4 @@
-<p>This is an issue when a Flask error handler returns a response without explicitly specifying the HTTP status code.</p>
+<p>This rule raises an issue when a Flask error handler returns a response without explicitly specifying the HTTP status code.</p>
 <h2>Why is this an issue?</h2>
 <p>Flask error handlers do not automatically set the HTTP status code based on the error type they handle. When you register an error handler with
 <code>@app.errorhandler(404)</code>, Flask does not automatically return a 404 status code from that handler.</p>
