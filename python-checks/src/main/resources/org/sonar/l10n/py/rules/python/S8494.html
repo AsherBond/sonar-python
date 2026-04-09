@@ -1,10 +1,33 @@
-<p>This rule raises an issue when code assigns a value to an attribute that is not listed in the class's <code>__slots__</code> declaration.</p>
+<p>This rule raises an issue when code assigns a value to an attribute that is not listed in the class’s <code>__slots__</code> declaration.</p>
 <h2>Why is this an issue?</h2>
-<p>In Python, the <code>__slots__</code> class attribute is used to explicitly declare which instance attributes a class can have. When a class defines
-<code>__slots__</code>, Python restricts instances to only those attributes, preventing the creation of new attributes dynamically.</p>
-<p>Assigning to an attribute that is not in <code>__slots__</code> causes Python to raise an <code>AttributeError</code> at runtime.</p>
+<p>In Python, the <code>__slots__</code> class attribute is used to explicitly declare which instance attributes a class can have. When a class
+defines <code>__slots__</code>, Python restricts instances to only those attributes, preventing the creation of new attributes dynamically.</p>
+<p>This restriction serves several purposes:</p>
+<ul>
+  <li><strong>memory efficiency</strong>: instances use less memory because Python does not create a <code>__dict__</code> for each instance</li>
+  <li><strong>faster attribute access</strong>: attribute lookups are faster with <code>__slots__</code></li>
+  <li><strong>explicit interface</strong>: the class clearly declares which attributes it supports</li>
+</ul>
+<p>Assigning to an attribute that is not in <code>__slots__</code> causes Python to raise an <code>AttributeError</code> at runtime:</p>
+<pre>
+class Point:
+    __slots__ = ['x', 'y']
+
+p = Point()
+p.x = 10  # OK
+p.z = 20  # Raises AttributeError: 'Point' object has no attribute 'z'
+</pre>
+<h3>What is the potential impact?</h3>
+<p>When code attempts to assign to an attribute not in <code>__slots__</code>, the application will crash with an <code>AttributeError</code> at
+runtime. This can lead to:</p>
+<ul>
+  <li><strong>application crashes</strong>: the error will terminate the current operation unless properly handled</li>
+  <li><strong>data loss</strong>: if the assignment happens during a data processing operation, partial results may be lost</li>
+  <li><strong>poor user experience</strong>: users may encounter unexpected errors during normal operations</li>
+  <li><strong>difficult debugging</strong>: the error may only occur in specific scenarios, making it hard to reproduce and fix</li>
+</ul>
 <h2>How to fix it</h2>
-<p>Add the missing attribute to the <code>__slots__</code> declaration.</p>
+<p>If the attribute should be part of the class’s interface, add it to the <code>__slots__</code> declaration.</p>
 <h3>Code examples</h3>
 <h4>Noncompliant code example</h4>
 <pre data-diff-id="1" data-diff-type="noncompliant">
@@ -31,3 +54,4 @@ class User:
 <ul>
   <li>Python Documentation - <a href="https://docs.python.org/3/reference/datamodel.html#slots">__slots__</a></li>
 </ul>
+

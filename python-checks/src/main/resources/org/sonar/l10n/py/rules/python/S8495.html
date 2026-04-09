@@ -10,6 +10,7 @@ def process_data(value):
     else:
         return (value, value * 2)  # Returns a 2-tuple
 
+# Caller has no reliable way to unpack this
 result = process_data(10)
 x, y = result  # ValueError if value &gt; 0!
 </pre>
@@ -20,8 +21,8 @@ provides no indication that the return type varies, so developers must read the 
 <p>Runtime errors from tuple unpacking may not surface during initial testing if certain code paths are not fully exercised, leading to production
 failures. The need for defensive length-checking also increases the maintenance burden and makes the API harder to document for new team members.</p>
 <h2>How to fix it</h2>
-<p>Make all return statements return tuples of the same length. Add placeholder values (like <code>None</code> or <code>0</code>) to shorter tuples
-to maintain consistency.</p>
+<p>Make all return statements return tuples of the same length. Add placeholder values (like <code>None</code> or <code>0</code>) to shorter tuples to
+maintain consistency.</p>
 <h3>Code examples</h3>
 <h4>Noncompliant code example</h4>
 <pre data-diff-id="1" data-diff-type="noncompliant">
@@ -41,9 +42,28 @@ def calculate_stats(numbers):
     average = total / len(numbers)
     return (total, average)
 </pre>
+<h3>Going the extra mile</h3>
+<p>For complex return types, consider using <code>typing.NamedTuple</code> to make the return value self-documenting. Named tuples provide clear field
+names and enforce a consistent structure, making the API easier to use and understand.</p>
+<pre>
+from typing import NamedTuple
+
+class Stats(NamedTuple):
+    total: float
+    average: float
+
+def calculate_stats(numbers) -&gt; Stats:
+    if not numbers:
+        return Stats(total=0, average=0)
+    total = sum(numbers)
+    average = total / len(numbers)
+    return Stats(total=total, average=average)
+</pre>
 <h2>Resources</h2>
 <h3>Documentation</h3>
 <ul>
-  <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/controlflow.html#more-on-defining-functions">More on Defining Functions</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/controlflow.html#more-on-defining-functions">More on Defining
+  Functions</a></li>
   <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/datastructures.html#tuples-and-sequences">Tuples and Sequences</a></li>
 </ul>
+

@@ -4,9 +4,13 @@
   "status": "ready",
   "remediation": {
     "func": "Constant\/Issue",
-    "constantCost": "5min"
+    "constantCost": "10 min"
   },
-  "tags": [],
+  "tags": [
+    "pitfall",
+    "api-design",
+    "type-system"
+  ],
   "defaultSeverity": "Major",
   "ruleSpecification": "RSPEC-8495",
   "sqKey": "S8495",
@@ -14,8 +18,9 @@
   "quickfix": "unknown",
   "code": {
     "impacts": {
+      "RELIABILITY": "HIGH",
       "MAINTAINABILITY": "HIGH"
     },
-    "attribute": "CONVENTIONAL"
+    "attribute": "CLEAR"
   }
 }
