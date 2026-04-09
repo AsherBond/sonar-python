@@ -397,6 +397,7 @@ public class OpenSourceCheckList {
       SecureModeEncryptionAlgorithmsCheck.class,
       SelfAssignmentCheck.class,
       SetDuplicateKeyCheck.class,
+      SetUpdateOverForLoopCheck.class,
       SideEffectInTfFunctionCheck.class,
       SillyEqualityCheck.class,
       SillyIdentityCheck.class,

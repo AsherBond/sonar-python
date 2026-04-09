@@ -1,0 +1,30 @@
+<p>This rule raises an issue when a for-loop is used to add all elements from one collection to a set using the <code>add()</code> method.</p>
+<h2>Why is this an issue?</h2>
+<p>Adding elements to a set one at a time in a loop is unnecessary when the <code>update()</code> method exists. The <code>update()</code> method
+combines all additions into a single call and avoids the overhead of repeated <code>add()</code> invocations. Using <code>update()</code> improves
+readability and removes redundant method call overhead. In loops or performance-critical code, the difference can become measurable.</p>
+<h2>How to fix it</h2>
+<p>Replace the for-loop with a single <code>update()</code> call. The method accepts any iterable.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+my_set = {1, 2, 3}
+other_collection = [4, 5, 6]
+
+for element in other_collection:
+    my_set.add(element)  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+my_set = {1, 2, 3}
+other_collection = [4, 5, 6]
+
+my_set.update(other_collection)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#frozenset.update"><code>set.update()</code> method</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#set-types-set-frozenset">Set Types — <code>set</code>, <code>frozenset</code></a></li>
+</ul>
+
