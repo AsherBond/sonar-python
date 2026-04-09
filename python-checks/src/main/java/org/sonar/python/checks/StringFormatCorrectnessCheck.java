@@ -26,6 +26,9 @@ import java.util.stream.IntStream;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.SubscriptionContext;
 import org.sonar.plugins.python.api.symbols.Symbol;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
+import org.sonar.plugins.python.api.tree.ArgList;
 import org.sonar.plugins.python.api.tree.BinaryExpression;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.DictionaryLiteral;
@@ -43,6 +46,8 @@ import org.sonar.python.checks.utils.Expressions;
 
 @Rule(key = "S3457")
 public class StringFormatCorrectnessCheck extends AbstractStringFormatCheck {
+
+  private static final TypeMatcher MARIMO_SQL_MATCHER = TypeMatchers.isType("marimo.sql");
 
   private static final Set<String> LOGGER_FULL_NAMES = new HashSet<>(Arrays.asList(
     "logging.debug", "logging.info", "logging.warning", "logging.error", "logging.critical",
@@ -114,9 +119,26 @@ public class StringFormatCorrectnessCheck extends AbstractStringFormatCheck {
       .filter(stringElement -> stringElement.prefix().toLowerCase(Locale.ENGLISH).contains("f"))
       .toList();
 
-    if (!fStrings.isEmpty() && fStrings.stream().allMatch(str -> str.formattedExpressions().isEmpty())) {
+    if (!fStrings.isEmpty() && fStrings.stream().allMatch(str -> str.formattedExpressions().isEmpty())
+        && !isMarimoSqlArgument(literal, ctx)) {
       ctx.addIssue(literal, "Add replacement fields or use a normal string instead of an f-string.");
     }
+  }
+
+  private static boolean isMarimoSqlArgument(StringLiteral literal, SubscriptionContext ctx) {
+    Tree parent = literal.parent();
+    if (!(parent instanceof RegularArgument)) {
+      return false;
+    }
+    Tree argList = parent.parent();
+    if (!(argList instanceof ArgList)) {
+      return false;
+    }
+    Tree callParent = argList.parent();
+    if (!(callParent instanceof CallExpression callExpression)) {
+      return false;
+    }
+    return MARIMO_SQL_MATCHER.isTrueFor(callExpression.callee(), ctx);
   }
 
   private static void checkLoggerLog(SubscriptionContext ctx, CallExpression callExpression) {

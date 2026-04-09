@@ -119,3 +119,26 @@ def edge_case():
     no_such_function('hello')
     l4 = no_such_function('')
     l4.error("Foo %s", "Bar", "too many")
+
+
+import marimo as mo
+
+def marimo_sql():
+    mo.sql(f"SELECT * FROM table")
+    mo.sql(
+        f"""
+        SELECT plugin_rule_key, COUNT(*) as cnt
+        FROM issues
+        GROUP BY plugin_rule_key
+        """
+    )
+    engine = None
+    mo.sql(
+        f"""
+        SELECT id, name
+        FROM users
+        WHERE active = 1
+        """,
+        engine=engine
+    )
+
