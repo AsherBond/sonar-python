@@ -17,7 +17,6 @@
 package org.sonar.python.project.config;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +37,7 @@ public class ProjectConfigurationBuilder {
   }
 
   public ProjectConfigurationBuilder addAwsLambdaHandler(String packageName, String fullyQualifiedName) {
-    awsLambdaHandlersByPackage.computeIfAbsent(packageName, k -> new HashSet<>()).add(fullyQualifiedName);
+    awsLambdaHandlersByPackage.computeIfAbsent(packageName, k -> ConcurrentHashMap.newKeySet()).add(fullyQualifiedName);
     return this;
   }
 
