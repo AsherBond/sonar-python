@@ -418,6 +418,7 @@ public class OpenSourceCheckList {
       StringLiteralDuplicationCheck.class,
       StringReplaceCheck.class,
       StrongCryptographicKeysCheck.class,
+      SumListConcatenationCheck.class,
       SklearnCachedPipelineDontAccessTransformersCheck.class,
       MissingHyperParameterCheck.class,
       NetworkCallsWithoutTimeoutsInLambdaCheck.class,

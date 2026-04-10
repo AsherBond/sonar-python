@@ -1,0 +1,38 @@
+<p>This rule raises an issue when <code>sum()</code> is called with an empty list (<code>[]</code>) as the start parameter to concatenate or flatten
+lists.</p>
+<h2>Why is this an issue?</h2>
+<p>Using <code>sum(list_of_lists, [])</code> to concatenate lists is a common anti-pattern in Python. Because each <code>+</code> concatenation
+creates a new list and copies all previous elements into it, the overall operation has quadratic time complexity O(n<sup>2</sup>) instead of the
+linear O(n) that proper alternatives achieve.</p>
+<p>Additionally, <code>sum()</code> is designed for numeric addition, not list operations. Using it for lists is semantically unclear and may confuse
+other developers reading the code.</p>
+<h3>What is the potential impact?</h3>
+<ul>
+  <li><strong>performance degradation</strong>: operations that should take milliseconds can take seconds or even minutes with large datasets</li>
+  <li><strong>memory pressure</strong>: each intermediate concatenation allocates a new list, creating unnecessary memory overhead</li>
+  <li><strong>scalability issues</strong>: code that works fine in development with small datasets may become unusable in production</li>
+</ul>
+<h2>How to fix it</h2>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+list_of_lists = [[1, 2], [3, 4], [5, 6]]
+result = sum(list_of_lists, [])  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+import itertools
+
+list_of_lists = [[1, 2], [3, 4], [5, 6]]
+result = list(itertools.chain.from_iterable(list_of_lists))
+</pre>
+<h3>How does this work?</h3>
+<p><code>itertools.chain.from_iterable()</code> creates an iterator that yields elements from each sub-list in sequence without creating intermediate
+list copies. This avoids the repeated copying that causes the quadratic behavior of <code>sum()</code> and results in linear O(n) time complexity.</p>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/itertools.html#itertools.chain"><code>itertools.chain</code> and
+  <code>chain.from_iterable</code></a></li>
+</ul>
+
