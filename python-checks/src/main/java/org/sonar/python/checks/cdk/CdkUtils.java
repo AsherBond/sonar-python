@@ -55,7 +55,7 @@ public class CdkUtils {
   public static Optional<Integer> getInt(Expression expression) {
     try {
       return Optional.of((int)((NumericLiteral) expression).valueAsLong());
-    } catch (ClassCastException e) {
+    } catch (ClassCastException | NumberFormatException e) {
       return Optional.empty();
     }
   }

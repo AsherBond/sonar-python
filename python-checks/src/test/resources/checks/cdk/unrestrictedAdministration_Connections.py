@@ -62,6 +62,7 @@ class Test:
 
         conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.all_tcp)
         conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.tcp(50))
+        conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.tcp(9223372036854775808))  # Compliant (port literal does not parse to long)
         conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.tcp(variable=3389))
         conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.tcp(port="3389"))
         conn.allow_from(ec2.Peer.any_ipv4(), ec2.Port.tcp_range(start_port=30, end_port=40))

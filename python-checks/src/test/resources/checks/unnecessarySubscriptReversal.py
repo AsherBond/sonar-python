@@ -35,6 +35,7 @@ def case4():
   set(data[::-2])
   set(data[::1])
   set(data[::-b])
+  sorted(data[::-9223372036854775808])  # Compliant (stride literal does not parse to long)
   list(data[::-1])
 
 def case5():

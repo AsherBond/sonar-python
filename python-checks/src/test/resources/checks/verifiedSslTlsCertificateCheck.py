@@ -89,6 +89,7 @@ def requestsTests():
   #                                                        ^^^^^
   requests.request('GET', 'https://example.domain', verify=range(0)) # Noncompliant {{Enable server certificate validation on this SSL/TLS connection.}}
   #                                                        ^^^^^^^^
+  requests.request('GET', 'https://example.domain', verify=range(9223372036854775808)) # Compliant (stop literal does not parse to long)
   requests.request(verify=False, method='GET', url='https://example.domain') # Noncompliant {{Enable server certificate validation on this SSL/TLS connection.}}
   #                       ^^^^^
 

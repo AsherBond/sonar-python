@@ -59,6 +59,8 @@ class ConstantTrueFalseTests(unittest.TestCase):
         # Should be raised by another rule
         assert False
         assert 0
+        assert 9223372036854775808  # Noncompliant {{Replace this expression; its boolean value is constant.}}
+    #          ^^^^^^^^^^^^^^^^^^^
 
 
     def test_constant_assert_true_with_unpacking(self):

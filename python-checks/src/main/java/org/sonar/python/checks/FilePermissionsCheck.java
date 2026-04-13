@@ -99,7 +99,11 @@ public class FilePermissionsCheck extends PythonSubscriptionCheck {
     }
     if (expression.is(Tree.Kind.NUMERIC_LITERAL)) {
       NumericLiteral numericLiteral = (NumericLiteral) expression;
-      return numericLiteral.valueAsLong() % 8 != safeModulo;
+      try {
+        return numericLiteral.valueAsLong() % 8 != safeModulo;
+      } catch (NumberFormatException nfe) {
+        return false;
+      }
     }
     if (expression.is(Tree.Kind.NAME)) {
       Expression singleAssignedValue = Expressions.singleAssignedValue(((Name) expression));

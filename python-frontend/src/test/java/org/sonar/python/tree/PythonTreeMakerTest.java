@@ -2070,6 +2070,18 @@ class PythonTreeMakerTest extends RuleTest {
     testNumericLiteral("0777", 511L);
     testNumericLiteral("0x28", 0x28L);
     testNumericLiteral("0X28", 0x28L);
+    testNumericLiteral("0.0", 0L);
+    testNumericLiteral("42.0", 42L);
+    testNumericLiteral("1e3", 1000L);
+    testNumericLiteral("3_0.0", 30L);
+  }
+
+  @Test
+  void numeric_literal_float_non_integral_valueAsLong_throws() {
+    setRootRule(PythonGrammar.ATOM);
+    Expression expression = parse("0.5", treeMaker::expression);
+    assertThat(expression.is(Tree.Kind.NUMERIC_LITERAL)).isTrue();
+    assertThatThrownBy(((NumericLiteral) expression)::valueAsLong).isInstanceOf(NumberFormatException.class);
   }
 
   private void testNumericLiteral(String code, Long expectedValue) {

@@ -61,6 +61,7 @@ def f():
   foobar[3:6:0x1] == 'bar' # Same
   foobar[-3:] == 'bar' # Noncompliant {{Use `endswith` here.}}
   foobar[:-3] == 'foo' # Noncompliant {{Use `startswith` here.}}
+  foobar[::9223372036854775808] == 'foo'  # Compliant (stride literal: isIntLiteralEqualTo handles NFE)
 
   # If an index is not a plain number, we can not say for sure if it is negative/positive. Hence, we should suggest startswith and endswith
   foobar[:unknownA()] == 'foo' # Noncompliant {{Use `startswith` here.}}

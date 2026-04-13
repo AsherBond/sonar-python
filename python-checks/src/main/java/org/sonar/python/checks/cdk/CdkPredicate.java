@@ -194,7 +194,16 @@ public class CdkPredicate {
   }
 
   public static Predicate<Expression> isNumeric(Set<Long> vals) {
-    return expression -> expression.is(Tree.Kind.NUMERIC_LITERAL) && vals.contains(((NumericLiteral) expression).valueAsLong());
+    return expression -> {
+      if (!expression.is(Tree.Kind.NUMERIC_LITERAL)) {
+        return false;
+      }
+      try {
+        return vals.contains(((NumericLiteral) expression).valueAsLong());
+      } catch (NumberFormatException nfe) {
+        return false;
+      }
+    };
   }
 
 }

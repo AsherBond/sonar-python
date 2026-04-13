@@ -261,7 +261,11 @@ public class FastAPIHTTPExceptionDocumentedCheck extends PythonSubscriptionCheck
         return extractStatusCode(singleAssignedValue);
       }
     } else if (statusCodeExpr instanceof NumericLiteral numericLiteral) {
-      return Optional.of((int) numericLiteral.valueAsLong());
+      try {
+        return Optional.of((int) numericLiteral.valueAsLong());
+      } catch (NumberFormatException e) {
+        return Optional.empty();
+      }
     } else if (statusCodeExpr instanceof StringLiteral stringLiteral) {
       try {
         return Optional.of(Integer.parseInt(stringLiteral.trimmedQuotesValue()));

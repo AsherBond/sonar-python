@@ -61,8 +61,12 @@ public class CommonValidationUtils {
   static boolean isLessThanExponent(Expression expression, int exponent) {
     if (expression.is(Tree.Kind.SHIFT_EXPR)) {
       var shiftExpression = (BinaryExpression) expression;
-      return shiftExpression.leftOperand().is(Tree.Kind.NUMERIC_LITERAL) && (((NumericLiteral) shiftExpression.leftOperand()).valueAsLong() == 1)
-        && isLessThan(shiftExpression.rightOperand(), exponent);
+      try {
+        return shiftExpression.leftOperand().is(Tree.Kind.NUMERIC_LITERAL) && (((NumericLiteral) shiftExpression.leftOperand()).valueAsLong() == 1)
+          && isLessThan(shiftExpression.rightOperand(), exponent);
+      } catch (NumberFormatException nfe) {
+        return false;
+      }
     }
     if (expression.is(Tree.Kind.NAME)) {
       return Expressions.singleAssignedNonNameValue(((Name) expression))

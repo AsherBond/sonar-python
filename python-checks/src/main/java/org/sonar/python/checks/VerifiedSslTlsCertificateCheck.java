@@ -433,7 +433,11 @@ public class VerifiedSslTlsCertificateCheck extends PythonSubscriptionCheck {
         Expression firstArgExpr = regArg.expression();
         if (firstArgExpr.is(Tree.Kind.NUMERIC_LITERAL)) {
           NumericLiteral num = (NumericLiteral) firstArgExpr;
-          return num.valueAsLong() == 0L;
+          try {
+            return num.valueAsLong() == 0L;
+          } catch (NumberFormatException nfe) {
+            return false;
+          }
         }
       }
     }

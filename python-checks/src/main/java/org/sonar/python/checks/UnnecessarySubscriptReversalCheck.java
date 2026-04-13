@@ -88,15 +88,19 @@ public class UnnecessarySubscriptReversalCheck extends PythonSubscriptionCheck {
   }
 
   private static boolean isSubscriptReversal(@Nullable Tree expression) {
-    return expression instanceof SliceExpression sliceExpression
-           && sliceExpression.sliceList().slices().size() == 1
-           && sliceExpression.sliceList().slices().get(0) instanceof SliceItem sliceItem
-           && sliceItem.lowerBound() == null
-           && sliceItem.upperBound() == null
-           && sliceItem.stride() instanceof UnaryExpression unaryExpression
-           && unaryExpression.is(Tree.Kind.UNARY_MINUS)
-           && unaryExpression.expression() instanceof NumericLiteral numericLiteral
-           && numericLiteral.valueAsLong() == 1;
+    try {
+      return expression instanceof SliceExpression sliceExpression
+             && sliceExpression.sliceList().slices().size() == 1
+             && sliceExpression.sliceList().slices().get(0) instanceof SliceItem sliceItem
+             && sliceItem.lowerBound() == null
+             && sliceItem.upperBound() == null
+             && sliceItem.stride() instanceof UnaryExpression unaryExpression
+             && unaryExpression.is(Tree.Kind.UNARY_MINUS)
+             && unaryExpression.expression() instanceof NumericLiteral numericLiteral
+             && numericLiteral.valueAsLong() == 1;
+    } catch (NumberFormatException nfe) {
+      return false;
+    }
   }
 
   private static int getUsageCount(Name name) {

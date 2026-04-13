@@ -16,6 +16,7 @@
  */
 package org.sonar.python.tree;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -61,6 +62,17 @@ public class NumericLiteralImpl extends PyTree implements NumericLiteral {
       return Integer.valueOf(literalValue.substring(2), 8);
     } else if (literalValue.startsWith("0x") || literalValue.startsWith("0X")) {
       return Integer.valueOf(literalValue.substring(2), 16);
+    } else if (numericKind() == NumericKind.FLOAT) {
+      // Decimal floats (e.g. 0.0, 1e3) must be handled before legacy octal (0-prefixed),
+      // otherwise tokens like "0.0" match the octal branch and ".0" is parsed as base 8.
+      try {
+        return new BigDecimal(literalValue).longValueExact();
+      } catch (ArithmeticException e) {
+        NumberFormatException nfe = new NumberFormatException(
+          "Not an integral floating-point literal: " + literalValue);
+        nfe.initCause(e);
+        throw nfe;
+      }
     } else if (literalValue.startsWith("0") && literalValue.length() > 1) {
       // Python 2 syntax (https://www.python.org/dev/peps/pep-3127/#removal-of-old-octal-syntax)
       return Integer.valueOf(literalValue.substring(1), 8);

@@ -76,6 +76,11 @@ def positional_status_code_argument():
 #         ^^^^^^^^^^^^^
 
 
+@app.get("/overflow-status")
+def positional_status_code_overflow_literal():
+    raise HTTPException(9223372036854775808, detail="not a representable status code")
+
+
 @app.post("/create")
 def post_method_undocumented():
     raise HTTPException(status_code=409, detail="Conflict")  # Noncompliant

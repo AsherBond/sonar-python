@@ -62,6 +62,8 @@ os.chmod("/tmp/fs", 32)   # Compliant ----r-----
 os.chmod("/tmp/fs", 256)  # Compliant -r--------
 os.chmod("/tmp/fs", 0)    # Compliant ----------
 
+os.chmod("/tmp/fs", 9223372036854775808)  # Compliant (mode literal does not parse to long)
+
 os.chmod("/tmp/fs", 4)     # Noncompliant
 os.chmod("/tmp/fs", 260)   # Noncompliant
 

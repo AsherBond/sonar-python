@@ -103,7 +103,11 @@ public class UnconditionalAssertionCheck extends PythonSubscriptionCheck {
       return "False".equals(((Name) expression).name());
     }
     if (expression.is(NUMERIC_LITERAL)) {
-      return ((NumericLiteral) expression).valueAsLong() == 0;
+      try {
+        return ((NumericLiteral) expression).valueAsLong() == 0;
+      } catch (NumberFormatException nfe) {
+        return false;
+      }
     }
     return false;
   }

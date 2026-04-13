@@ -4,6 +4,7 @@ def compliant_examples():
     datetime.time(12, 30, 0, 0)
     datetime.date(2024, 3, 1)
     datetime.datetime(2024, 3, 1, 12, 30, 0, 0)
+    datetime.date(9223372036854775808, 1, 1)  # Compliant (year literal does not parse to long)
 
 def non_compliant_examples():
     datetime.date(2024, 3, 32) # Noncompliant {{Provide a correct value for the `day` parameter.}}

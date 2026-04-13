@@ -123,9 +123,7 @@ public class UseStartsWithEndsWithCheck extends PythonSubscriptionCheck {
       // then we don't check the rule.
       if (stride != null &&
         !stride.type().mustBeOrExtend(BuiltinTypes.NONE_TYPE) &&
-        !(stride.is(Tree.Kind.NUMERIC_LITERAL) &&
-          stride.type().mustBeOrExtend(BuiltinTypes.INT) &&
-          ((NumericLiteral) stride).valueAsLong() == 1)) {
+        !isIntLiteralEqualTo(stride, 1)) {
         return SliceType.COMPLEX;
       }
 
@@ -150,6 +148,16 @@ public class UseStartsWithEndsWithCheck extends PythonSubscriptionCheck {
 
     private static boolean isEmptyBound(@CheckForNull Expression bound) {
       return bound == null || bound.type().mustBeOrExtend(BuiltinTypes.NONE_TYPE);
+    }
+  }
+
+  private static boolean isIntLiteralEqualTo(Expression expression, long expected) {
+    try {
+      return expression.is(Tree.Kind.NUMERIC_LITERAL)
+        && expression.type().mustBeOrExtend(BuiltinTypes.INT)
+        && ((NumericLiteral) expression).valueAsLong() == expected;
+    } catch (NumberFormatException nfe) {
+      return false;
     }
   }
 

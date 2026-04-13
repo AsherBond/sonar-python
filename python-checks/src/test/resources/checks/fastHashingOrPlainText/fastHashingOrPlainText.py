@@ -8,6 +8,7 @@ def non_hashlib():
     scrypt.hash(password, salt, buflen=31)  # Noncompliant
     scrypt.hash(password, salt, buflen=32)
     scrypt.hash(password, salt, N=1 << 12)  # Noncompliant
+    scrypt.hash(password, salt, N=9223372036854775808 << 1)  # Compliant (invalid long: isLessThanExponent handles NFE)
     exp = 7
     scrypt.hash(password, salt, N=1 << exp)  # Noncompliant
     exp_2 = 1 << 3

@@ -102,16 +102,20 @@ public class IncorrectParameterDatetimeConstructorsCheck extends PythonSubscript
   }
 
   private static ValueWithExpression getValue(Expression expression) {
-    if (expression.is(Tree.Kind.NUMERIC_LITERAL)) {
-      return new ValueWithExpression(((NumericLiteral) expression).valueAsLong(), expression);
-    } else if (expression.is(Tree.Kind.UNARY_MINUS)) {
-      UnaryExpression unaryExpression = (UnaryExpression) expression;
-      if (!unaryExpression.expression().is(Tree.Kind.NUMERIC_LITERAL)) {
-        return null;
+    try {
+      if (expression.is(Tree.Kind.NUMERIC_LITERAL)) {
+        return new ValueWithExpression(((NumericLiteral) expression).valueAsLong(), expression);
+      } else if (expression.is(Tree.Kind.UNARY_MINUS)) {
+        UnaryExpression unaryExpression = (UnaryExpression) expression;
+        if (!unaryExpression.expression().is(Tree.Kind.NUMERIC_LITERAL)) {
+          return null;
+        }
+        return new ValueWithExpression(-((NumericLiteral) unaryExpression.expression()).valueAsLong(), unaryExpression);
+      } else if (expression.is(Tree.Kind.NAME)) {
+        return Expressions.singleAssignedNonNameValue((Name) expression).map(IncorrectParameterDatetimeConstructorsCheck::getValue).orElse(null);
       }
-      return new ValueWithExpression(-((NumericLiteral) unaryExpression.expression()).valueAsLong(), unaryExpression);
-    } else if (expression.is(Tree.Kind.NAME)) {
-      return Expressions.singleAssignedNonNameValue((Name) expression).map(IncorrectParameterDatetimeConstructorsCheck::getValue).orElse(null);
+    } catch (NumberFormatException nfe) {
+      return null;
     }
     return null;
   }
