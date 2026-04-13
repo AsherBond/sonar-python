@@ -319,6 +319,7 @@ public class OpenSourceCheckList {
       MissingNewlineAtEndOfFileCheck.class,
       ModifiedParameterValueCheck.class,
       ModuleNameCheck.class,
+      MultipleInheritanceMROConflictCheck.class,
       MultipleWhitespaceCheck.class,
       MutableDefaultValueCheck.class,
       NeedlessPassCheck.class,

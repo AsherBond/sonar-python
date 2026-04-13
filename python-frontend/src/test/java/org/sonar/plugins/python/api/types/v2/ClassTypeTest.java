@@ -869,6 +869,155 @@ public class ClassTypeTest {
   }
 
 
+  // -------------------------------------------------------------------------
+  // mro() tests
+  // -------------------------------------------------------------------------
+
+  @Test
+  void mro_no_parents() {
+    ClassType classC = classType("class C: ...");
+    assertThat(classC.mro()).isPresent().get().asInstanceOf(
+      org.assertj.core.api.InstanceOfAssertFactories.list(ClassType.class))
+      .containsExactly(classC);
+  }
+
+  @Test
+  void mro_single_parent() {
+    List<ClassType> types = classTypes(
+      "class Base: ...",
+      "class Child(Base): ..."
+    );
+    ClassType base = types.get(0);
+    ClassType child = types.get(1);
+    assertThat(child.mro()).isPresent().get().asInstanceOf(
+      org.assertj.core.api.InstanceOfAssertFactories.list(ClassType.class))
+      .containsExactly(child, base);
+  }
+
+  @Test
+  void mro_linear_chain() {
+    List<ClassType> types = classTypes(
+      "class A: ...",
+      "class B(A): ...",
+      "class C(B): ..."
+    );
+    ClassType a = types.get(0);
+    ClassType b = types.get(1);
+    ClassType c = types.get(2);
+    assertThat(c.mro()).isPresent().get().asInstanceOf(
+      org.assertj.core.api.InstanceOfAssertFactories.list(ClassType.class))
+      .containsExactly(c, b, a);
+  }
+
+  @Test
+  void mro_valid_diamond() {
+    // Classic diamond: D(B, C), B(A), C(A)
+    // MRO: D, B, C, A
+    List<ClassType> types = classTypes(
+      "class A: ...",
+      "class B(A): ...",
+      "class C(A): ...",
+      "class D(B, C): ..."
+    );
+    ClassType a = types.get(0);
+    ClassType b = types.get(1);
+    ClassType c = types.get(2);
+    ClassType d = types.get(3);
+    assertThat(d.mro()).isPresent().get().asInstanceOf(
+      org.assertj.core.api.InstanceOfAssertFactories.list(ClassType.class))
+      .containsExactly(d, b, c, a);
+  }
+
+  @Test
+  void mro_conflict_returns_empty() {
+    // class Leaf(Base): ...
+    // class Broken(Base, Leaf): ...  <- MRO conflict
+    List<ClassType> types = classTypes(
+      "class Base: ...",
+      "class Leaf(Base): ...",
+      "class Broken(Base, Leaf): ..."
+    );
+    ClassType broken = types.get(2);
+    assertThat(broken.mro()).isEmpty();
+  }
+
+  @Test
+  void wouldHaveValidMro_returns_false_when_merge_fails() {
+    // Same hierarchy as mro_conflict_returns_empty: merging Base with Leaf (Leaf extends Base) fails.
+    List<ClassType> types = classTypes(
+      "class Base: ...",
+      "class Leaf(Base): ...",
+      "class Broken(Base, Leaf): ..."
+    );
+    ClassType base = types.get(0);
+    ClassType leaf = types.get(1);
+    assertThat(ClassType.wouldHaveValidMro(List.of(base, leaf))).isFalse();
+  }
+
+  @Test
+  void wouldHaveValidMro_returns_true_for_diamond_inheritance_bases() {
+    List<ClassType> types = classTypes(
+      "class A: ...",
+      "class B(A): ...",
+      "class C(A): ...",
+      "class D(B, C): ..."
+    );
+    ClassType b = types.get(1);
+    ClassType c = types.get(2);
+    assertThat(ClassType.wouldHaveValidMro(List.of(b, c))).isTrue();
+  }
+
+  @Test
+  void mro_unresolved_hierarchy_returns_empty() {
+    // class Child(Unknown): ...  <- unresolved parent
+    List<ClassType> types = classTypes(
+      "class Child(Unknown): ..."
+    );
+    ClassType child = types.get(0);
+    assertThat(child.mro()).isEmpty();
+  }
+
+  @Test
+  void mro_with_builtin_parent() {
+    List<ClassType> types = classTypes(
+      "class MyError(BaseException): ..."
+    );
+    ClassType myError = types.get(0);
+    var mro = myError.mro();
+    assertThat(mro).isPresent();
+    assertThat(mro.get().get(0)).isSameAs(myError);
+    assertThat(mro.get().stream().map(ClassType::name)).contains("BaseException");
+  }
+
+  @Test
+  void mro_c3_ordering() {
+    // From https://docs.python.org/3/howto/mro.html
+    // class F: ...
+    // class E: ...
+    // class D: ...
+    // class C(D, F): ...
+    // class B(D, E): ...
+    // class A(B, C): ...
+    // MRO(A) = A, B, C, D, E, F
+    List<ClassType> types = classTypes(
+      "class F: ...",
+      "class E: ...",
+      "class D: ...",
+      "class C(D, F): ...",
+      "class B(D, E): ...",
+      "class A(B, C): ..."
+    );
+    ClassType f = types.get(0);
+    ClassType e = types.get(1);
+    ClassType d = types.get(2);
+    ClassType c = types.get(3);
+    ClassType b = types.get(4);
+    ClassType a = types.get(5);
+    assertThat(a.mro()).isPresent().get().asInstanceOf(
+      org.assertj.core.api.InstanceOfAssertFactories.list(ClassType.class))
+      .containsExactly(a, b, c, d, e, f);
+  }
+
   @Test
   void builder() {
     ClassTypeBuilder classTypeBuilder = new ClassTypeBuilder("A", "mod.A");

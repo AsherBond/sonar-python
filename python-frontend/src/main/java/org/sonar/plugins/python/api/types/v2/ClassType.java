@@ -184,6 +184,41 @@ public final class ClassType implements PythonType {
     );
   }
 
+  /**
+   * Computes the C3 linearization (Method Resolution Order) for this class.
+   *
+   * <p>Returns {@code Optional.empty()} if:
+   * <ul>
+   *   <li>the type hierarchy is unresolved ({@link #hasUnresolvedHierarchy()} is {@code true}), or</li>
+   *   <li>the MRO cannot be computed because the base class ordering creates a conflict
+   *       (i.e. what Python raises as a {@code TypeError} at class definition time).</li>
+   * </ul>
+   *
+   * <p>The returned list starts with {@code this} and ends with the most-distant ancestor.
+   *
+   * @see <a href="https://docs.python.org/3/howto/mro.html">Python MRO documentation</a>
+   */
+  public Optional<List<ClassType>> mro() {
+    if (hasUnresolvedHierarchy()) {
+      return Optional.empty();
+    }
+    return ClassTypeMroUtils.compute(this);
+  }
+
+  /**
+   * Returns whether C3 linearization would succeed for a hypothetical class whose direct bases are
+   * exactly {@code bases} in order.
+   *
+   * <p>Precondition: every element of {@code bases} is non-null and fully resolved (no unresolved
+   * hierarchy), matching what {@link #mro()} requires for each base.
+   *
+   * <p>If any base has an empty {@link #mro()} because an ancestor's hierarchy is invalid, this
+   * returns {@code true} — the failure is not attributable to the merge of these bases alone.
+   */
+  public static boolean wouldHaveValidMro(List<ClassType> bases) {
+    return ClassTypeMroUtils.wouldHaveValidMro(bases);
+  }
+
   @Override
   public TriBool hasMember(String memberName) {
     // a ClassType is an object of class type, it has the same members as those present on any type
