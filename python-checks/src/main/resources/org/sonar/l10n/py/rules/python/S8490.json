@@ -1,0 +1,24 @@
+{
+  "title": "Enum classes should not be decorated with \"@dataclass\"",
+  "type": "BUG",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "pitfall",
+    "enum"
+  ],
+  "defaultSeverity": "Blocker",
+  "ruleSpecification": "RSPEC-8490",
+  "sqKey": "S8490",
+  "scope": "All",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "BLOCKER"
+    },
+    "attribute": "LOGICAL"
+  }
+}
