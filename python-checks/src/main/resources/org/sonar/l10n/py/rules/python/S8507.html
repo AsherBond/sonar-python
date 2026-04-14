@@ -1,0 +1,41 @@
+<p>This rule raises an issue when a <code>TypeVar</code>, <code>ParamSpec</code>, or <code>NewType</code> is assigned to a variable whose name does
+not match the string name passed to its constructor.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python’s typing system, <code>TypeVar</code>, <code>ParamSpec</code>, and <code>NewType</code> are special constructs used to define generic
+types and type aliases. When creating these objects, you provide a string name as the first argument to the constructor. The convention is that this
+string name should match the variable name to which the type is assigned.</p>
+<p>When the names do not match, type checkers and runtime error messages use the string name from the constructor, which can make error messages
+confusing. IDEs and other development tools may also rely on this naming convention to provide accurate type information.</p>
+<h3>What is the potential impact?</h3>
+<p>Mismatched names create confusion for developers reading the code and make error messages harder to understand. This can slow down debugging and
+make code reviews more difficult, reducing overall development efficiency.</p>
+<p>In larger codebases with multiple type variables, mismatched names can lead to mistakes when refactoring or extending generic classes and
+functions.</p>
+<h2>How to fix it</h2>
+<p>Ensure the string name passed to the constructor matches the variable name it is assigned to.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+from typing import TypeVar, ParamSpec, NewType
+
+MyType = TypeVar("T")  # Noncompliant: variable is "MyType" but string is "T"
+MyParams = ParamSpec("P")  # Noncompliant: variable is "MyParams" but string is "P"
+MyInt = NewType("Integer", int)  # Noncompliant: variable is "MyInt" but string is "Integer"
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+from typing import TypeVar, ParamSpec, NewType
+
+MyType = TypeVar("MyType")  # Compliant: names match
+MyParams = ParamSpec("MyParams")  # Compliant: names match
+MyInt = NewType("MyInt", int)  # Compliant: names match
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/typing.html#typing.TypeVar"><code>TypeVar</code></a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/typing.html#typing.ParamSpec"><code>ParamSpec</code></a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/typing.html#typing.NewType"><code>NewType</code></a></li>
+  <li>PEP 484 - <a href="https://peps.python.org/pep-0484/">Type Hints</a></li>
+</ul>
+

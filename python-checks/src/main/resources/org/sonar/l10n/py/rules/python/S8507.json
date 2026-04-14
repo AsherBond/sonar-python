@@ -1,0 +1,25 @@
+{
+  "title": "TypeVar, ParamSpec, and NewType names should match their assigned variable names",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "convention",
+    "type-hint",
+    "readability"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8507",
+  "sqKey": "S8507",
+  "scope": "All",
+  "quickfix": "targeted",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  }
+}
