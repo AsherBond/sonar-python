@@ -1,0 +1,52 @@
+<p>This rule raises an issue when <code>StopIteration</code> is explicitly raised within a generator function, that is, a function containing
+<code>yield</code>.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, generators are special functions that use the <code>yield</code> keyword to produce a sequence of values lazily. They implement the
+iterator protocol and are used to create iterators in a concise way.</p>
+<p>Traditionally, raising <code>StopIteration</code> was the standard way to signal that an iterator had no more values to produce. However, this
+could lead to subtle bugs when <code>StopIteration</code> exceptions from nested iterators or function calls accidentally propagated up and terminated
+the generator unexpectedly.</p>
+<p>To address this issue, <a href="https://peps.python.org/pep-0479/">PEP 479</a> changed the behavior in Python 3.7+. Now, when
+<code>StopIteration</code> is raised inside a generator function, Python automatically converts it to a <code>RuntimeError</code>. This conversion
+happens at the point where the exception would leave the generator.</p>
+<p>This means code that explicitly raises <code>StopIteration</code> in a generator will fail with a <code>RuntimeError</code> at runtime in Python
+3.7 and later versions. The error message will indicate that the <code>StopIteration</code> exception was raised inside a generator.</p>
+<p>The proper way to terminate a generator is to use a <code>return</code> statement, optionally with a value. When a generator executes a
+<code>return</code>, Python automatically raises <code>StopIteration</code> behind the scenes, but does so in a way that is compatible with PEP
+479.</p>
+<h3>What is the potential impact?</h3>
+<p>When <code>StopIteration</code> is raised inside a generator in Python 3.7+, it causes a <code>RuntimeError</code> at runtime. This can lead
+to:</p>
+<ul>
+  <li>application crashes or unexpected failures</li>
+  <li>difficult-to-debug errors, especially in production environments</li>
+  <li>code that works in older Python versions but breaks when upgraded</li>
+  <li>inconsistent behavior across different Python versions</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Replace the <code>raise StopIteration</code> statement with a <code>return</code> statement. In generators, <code>return</code> is the proper way
+to signal completion. If you need to return a value when the generator completes, you can use <code>return value</code>, though note that this value
+is not yielded but becomes the exception value of the <code>StopIteration</code> that is automatically raised.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+def my_generator():
+    yield 1
+    yield 2
+    raise StopIteration  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+def my_generator():
+    yield 1
+    yield 2
+    return  # Properly terminates the generator
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>PEP 479 - <a href="https://peps.python.org/pep-0479/">Change StopIteration handling inside generators</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/howto/functional.html#generators">Generators</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#iterator-types">Iterator Types</a></li>
+</ul>
+

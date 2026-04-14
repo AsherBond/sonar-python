@@ -1,0 +1,25 @@
+{
+  "title": "\"StopIteration\" should not be raised inside generators",
+  "type": "BUG",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "pitfall",
+    "python3"
+  ],
+  "defaultSeverity": "Blocker",
+  "ruleSpecification": "RSPEC-8493",
+  "sqKey": "S8493",
+  "scope": "Main",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "BLOCKER",
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  }
+}
