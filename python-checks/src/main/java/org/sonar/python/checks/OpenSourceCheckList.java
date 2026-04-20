@@ -406,6 +406,7 @@ public class OpenSourceCheckList {
       SillyIdentityCheck.class,
       SingleCharacterAlternationCheck.class,
       SingleCharCharacterClassCheck.class,
+      SingleDispatchMixupCheck.class,
       SkippedTestNoReasonCheck.class,
       SkLearnEstimatorDontInitializeEstimatedValuesCheck.class,
       SleepZeroInAsyncCheck.class,

@@ -1,0 +1,153 @@
+<p>This rule raises an issue when <code>@singledispatch</code> is used on a class method instead of <code>@singledispatchmethod</code>, or when
+<code>@singledispatchmethod</code> is used on a standalone function instead of <code>@singledispatch</code>.</p>
+<h2>Why is this an issue?</h2>
+<p>The <code>@singledispatch</code> and <code>@singledispatchmethod</code> decorators from <code>functools</code> serve different purposes and are not
+interchangeable.</p>
+<p><code>@singledispatch</code> is designed for standalone functions. It dispatches based on the type of the first argument. When applied to an
+instance method, the first argument is <code>self</code>, so dispatch is performed on the type of the instance instead of on the actual data argument.
+The registered type implementations (for example, for <code>int</code> or <code>str</code>) are therefore never selected based on the data, and the
+behavior depends on the receiver:</p>
+<ul>
+  <li>When called on an instance of the class where the method is defined, the base implementation is invoked regardless of the data argument’s
+  type.</li>
+  <li>When called on an instance of a subclass, dispatch may resolve to a <strong>different</strong> registered implementation depending on the
+  subclass’s MRO, so the same call can produce different results in different parts of a class hierarchy. This is typically worse than always falling
+  back to the base implementation, because the bug becomes intermittent and hierarchy-dependent.</li>
+</ul>
+<p><code>@singledispatchmethod</code> is designed for instance methods and class methods. It returns a non-callable descriptor that relies on the
+descriptor protocol to bind to an instance or class. When applied to a standalone function, the resulting object cannot be invoked at all, and calling
+it raises <code>TypeError: 'singledispatchmethod' object is not callable</code>.</p>
+<p>This rule also flags <code>@singledispatch</code> applied to a method decorated with <code>@classmethod</code>. In that case, the dispatcher
+attempts to call a <code>classmethod</code> object directly and raises <code>TypeError</code> at call time.</p>
+<p>In all of these cases, no error or warning is raised at decoration time, making the bug silent and hard to detect by reading the code alone.</p>
+<h3>Exceptions</h3>
+<p>The rule’s behavior with <code>@staticmethod</code> depends on the decorator order:</p>
+<ul>
+  <li><code>@singledispatch</code> placed <strong>above</strong> <code>@staticmethod</code> <strong>is</strong> flagged. In that order,
+  <code>@singledispatch</code> wraps the <code>staticmethod</code> descriptor object, which prevents it from working as a static method and breaks
+  dispatch on instances (<code>MyClass().process(value)</code> raises <code>TypeError</code>).</li>
+  <li><code>@staticmethod</code> placed <strong>above</strong> <code>@singledispatch</code> is <strong>not</strong> flagged, because
+  <code>@singledispatch</code> is then applied to a regular function and <code>@staticmethod</code> simply prevents Python from binding
+  <code>self</code>, so dispatch correctly happens on the data argument.</li>
+</ul>
+<p>Note that even the non-flagged order is uncommon and easy to misuse: stacked decorators must be ordered carefully, and a future refactor that swaps
+the order silently reintroduces the bug. Prefer using <code>@singledispatch</code> on a module-level function, or <code>@singledispatchmethod</code>
+when the dispatcher needs to live on a class.</p>
+<h3>What is the potential impact?</h3>
+<p>Confusing these two decorators causes the type dispatch mechanism to behave incorrectly:</p>
+<ul>
+  <li>registered type implementations will not be called for the expected argument</li>
+  <li>with <code>@singledispatch</code> on an instance method, calls on subclasses may resolve to <strong>different</strong> registered
+  implementations than calls on the base class, so the same call site can produce different results depending on the receiver’s type</li>
+  <li>the code may appear to work in simple tests but fail or behave inconsistently in production with different input types or in larger class
+  hierarchies</li>
+  <li>debugging is difficult because no error or warning is raised at decoration time</li>
+  <li>the application may process data incorrectly, potentially leading to data corruption or security issues if type-specific validation or
+  sanitization is bypassed</li>
+  <li>combining <code>@singledispatch</code> with <code>@classmethod</code> raises a <code>TypeError</code> at call time</li>
+</ul>
+<h2>How to fix it</h2>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<p>Using <code>@singledispatch</code> on a class method:</p>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+from functools import singledispatch
+
+class Processor:
+    @singledispatch  # Noncompliant: should use @singledispatchmethod for methods
+    def process(self, data):
+        return f"Processing: {data}"
+
+    @process.register(int)
+    def _(self, data):
+        return f"Processing int: {data}"
+
+    @process.register(str)
+    def _(self, data):
+        return f"Processing str: {data}"
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+from functools import singledispatchmethod
+
+class Processor:
+    @singledispatchmethod
+    def process(self, data):
+        return f"Processing: {data}"
+
+    @process.register(int)
+    def _(self, data):
+        return f"Processing int: {data}"
+
+    @process.register(str)
+    def _(self, data):
+        return f"Processing str: {data}"
+</pre>
+<h4>Noncompliant code example</h4>
+<p>Using <code>@singledispatchmethod</code> on a standalone function:</p>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+from functools import singledispatchmethod
+
+@singledispatchmethod  # Noncompliant: should use @singledispatch for standalone functions
+def process(data):
+    return f"Processing: {data}"
+
+@process.register(int)
+def _(data):
+    return f"Processing int: {data}"
+
+@process.register(str)
+def _(data):
+    return f"Processing str: {data}"
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="2" data-diff-type="compliant">
+from functools import singledispatch
+
+@singledispatch
+def process(data):
+    return f"Processing: {data}"
+
+@process.register(int)
+def _(data):
+    return f"Processing int: {data}"
+
+@process.register(str)
+def _(data):
+    return f"Processing str: {data}"
+</pre>
+<h3>How does this work?</h3>
+<p>Use <code>@singledispatch</code> for standalone, module-level functions and <code>@singledispatchmethod</code> for instance methods and class
+methods. The <code>@singledispatch</code> decorator dispatches on the first argument, while <code>@singledispatchmethod</code> skips <code>self</code>
+or <code>cls</code> and dispatches on the next argument.</p>
+<p>When combining <code>@singledispatchmethod</code> with <code>@classmethod</code>, <code>@singledispatchmethod</code> must remain the outermost
+decorator so that the registration mechanism (<code>process.register</code>) is still available. <code>@classmethod</code> is then applied to the base
+implementation and to each registered overload:</p>
+<pre>
+from functools import singledispatchmethod
+
+class Processor:
+    @singledispatchmethod
+    @classmethod
+    def process(cls, data):
+        return f"Processing: {data}"
+
+    @process.register
+    @classmethod
+    def _(cls, data: int):
+        return f"Processing int: {data}"
+</pre>
+<p>For static methods, prefer turning the function into a module-level function decorated with <code>@singledispatch</code>. If the dispatcher must
+live on the class, place <code>@staticmethod</code> <strong>above</strong> <code>@singledispatch</code> so that <code>@singledispatch</code> wraps a
+regular function rather than a <code>staticmethod</code> descriptor; the inverse order breaks dispatch on instance calls and is reported by this
+rule.</p>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a
+  href="https://docs.python.org/3/library/functools.html#functools.singledispatch"><code>functools.singledispatch</code></a></li>
+  <li>Python Documentation - <a
+  href="https://docs.python.org/3/library/functools.html#functools.singledispatchmethod"><code>functools.singledispatchmethod</code></a></li>
+  <li>PEP 443 - <a href="https://www.python.org/dev/peps/pep-0443/">Single-dispatch generic functions</a></li>
+</ul>
+

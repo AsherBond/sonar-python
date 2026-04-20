@@ -1,0 +1,25 @@
+{
+  "title": "\"@singledispatch\" and \"@singledispatchmethod\" should not be confused",
+  "type": "BUG",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "pitfall",
+    "confusing"
+  ],
+  "defaultSeverity": "Blocker",
+  "ruleSpecification": "RSPEC-8505",
+  "sqKey": "S8505",
+  "scope": "Main",
+  "quickfix": "no",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "BLOCKER",
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  }
+}
