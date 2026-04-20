@@ -415,6 +415,7 @@ public class OpenSourceCheckList {
       SpecialMethodReturnTypeCheck.class,
       SQLQueriesCheck.class,
       StandardInputCheck.class,
+      StartsWithEndsWithTupleCheck.class,
       StopIterationInGeneratorCheck.class,
       StrftimeConfusingHourSystemCheck.class,
       StringFormatCorrectnessCheck.class,

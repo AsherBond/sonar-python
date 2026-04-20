@@ -1,0 +1,17 @@
+{
+  "title": "\"startswith\" and \"endswith\" calls should use tuples instead of multiple \"or\" operators",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "convention"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-8513",
+  "sqKey": "S8513",
+  "scope": "All",
+  "quickfix": "covered"
+}
