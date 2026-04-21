@@ -206,8 +206,12 @@ public final class ClassType implements PythonType {
   }
 
   /**
-   * Returns whether C3 linearization would succeed for a hypothetical class whose direct bases are
-   * exactly {@code bases} in order.
+   * Returns whether C3 linearization would succeed at runtime for a hypothetical class whose direct
+   * bases are exactly {@code bases} in order. Uses Python's runtime view of built-in containers:
+   * typeshed-only inheritance edges from {@code dict}/{@code list}/{@code set}/… to their
+   * {@code collections.abc} / {@code typing} ABCs (which at runtime are
+   * {@code abc.ABCMeta.register()} virtual subclasses, not real bases) are ignored. This way, valid
+   * Python code such as {@code class N(MutableMapping, dict): pass} is not flagged.
    *
    * <p>Precondition: every element of {@code bases} is non-null and fully resolved (no unresolved
    * hierarchy), matching what {@link #mro()} requires for each base.
@@ -217,6 +221,15 @@ public final class ClassType implements PythonType {
    */
   public static boolean wouldHaveValidMro(List<ClassType> bases) {
     return ClassTypeMroUtils.wouldHaveValidMro(bases);
+  }
+
+  /**
+   * Returns {@code true} for built-in containers whose typeshed declaration includes fictional
+   * ABC inheritance that does not exist at runtime (e.g. {@code dict}, {@code list}, {@code set}).
+   * See {@link #wouldHaveValidMro(List)}.
+   */
+  public boolean isVirtualAbcSubclassingBuiltin() {
+    return ClassTypeMroUtils.isVirtualAbcSubclassingBuiltin(this);
   }
 
   @Override

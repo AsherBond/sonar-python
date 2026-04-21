@@ -27,27 +27,36 @@ import javax.annotation.CheckForNull;
 
 /**
  * C3 linearization (Method Resolution Order) for {@link ClassType}.
+ *
+ * <p>Built-in containers listed in {@link #VIRTUAL_ABC_SUBCLASSING_BUILTIN_FQNS} have typeshed
+ * declarations that lie about their bases (e.g. {@code class dict(MutableMapping, Generic)}),
+ * but at runtime they only inherit from {@code object} and the ABC relationship is a
+ * virtual-subclass registration via {@code abc.ABCMeta.register()}. {@link #compute(ClassType)}
+ * preserves the typeshed view (used by {@link ClassType#mro()}), while
+ * {@link #wouldHaveValidMro(List)} honours the runtime view (used to detect real MRO conflicts).
  */
 final class ClassTypeMroUtils {
+
+  private static final Set<String> VIRTUAL_ABC_SUBCLASSING_BUILTIN_FQNS = Set.of(
+    "dict", "list", "tuple", "set", "frozenset", "str", "bytes", "bytearray", "collections.deque"
+  );
 
   private ClassTypeMroUtils() {
   }
 
-  /**
-   * Computes the C3 MRO for {@code cls}, using a fresh memoisation cache.
-   */
   static Optional<List<ClassType>> compute(ClassType cls) {
-    return compute(cls, new HashMap<>(), new HashSet<>());
+    return compute(cls, new HashMap<>(), new HashSet<>(), false);
   }
 
   /**
-   * Returns whether C3 linearization would succeed for a hypothetical class whose direct bases are
-   * exactly {@code bases} in order — same behaviour as {@link ClassType#wouldHaveValidMro(List)}.
+   * Returns whether C3 would succeed at runtime for a hypothetical class whose direct bases are
+   * exactly {@code bases} in order. Backs {@link ClassType#wouldHaveValidMro(List)}.
    */
   static boolean wouldHaveValidMro(List<ClassType> bases) {
+    Map<ClassType, Optional<List<ClassType>>> cache = new HashMap<>();
     List<List<ClassType>> lists = new ArrayList<>();
     for (ClassType base : bases) {
-      Optional<List<ClassType>> mro = base.mro();
+      Optional<List<ClassType>> mro = compute(base, cache, new HashSet<>(), true);
       if (mro.isEmpty()) {
         return true;
       }
@@ -57,17 +66,33 @@ final class ClassTypeMroUtils {
     return c3Merge(lists) != null;
   }
 
+  static boolean isVirtualAbcSubclassingBuiltin(ClassType cls) {
+    String fqn = cls.fullyQualifiedName();
+    return fqn != null && VIRTUAL_ABC_SUBCLASSING_BUILTIN_FQNS.contains(fqn);
+  }
+
   /**
-   * Recursively computes the C3 MRO for {@code cls}, memoising results in {@code cache}.
-   * {@code visiting} guards against cycles.
+   * Recursively computes the C3 MRO for {@code cls}. {@code cache} memoises results across the
+   * traversal (callers may pass a fresh map); {@code visiting} guards against inheritance cycles.
    */
   private static Optional<List<ClassType>> compute(
     ClassType cls,
     Map<ClassType, Optional<List<ClassType>>> cache,
-    Set<ClassType> visiting
+    Set<ClassType> visiting,
+    boolean stripVirtualAbcInheritance
   ) {
     if (cache.containsKey(cls)) {
       return cache.get(cls);
+    }
+    if (stripVirtualAbcInheritance && isVirtualAbcSubclassingBuiltin(cls)) {
+      // Runtime view: ignore the typeshed-declared parents but still keep {@code object} as the tail,
+      // so C3 rejects orderings like {@code class X(object, dict)} (object must come after dict).
+      // {@code object} is, by construction, the last element of {@code cls}'s non-stripped MRO.
+      Optional<List<ClassType>> fullMro = compute(cls, new HashMap<>(), new HashSet<>(), false);
+      List<ClassType> mro = fullMro.map(m -> List.of(cls, m.get(m.size() - 1))).orElseGet(() -> List.of(cls));
+      Optional<List<ClassType>> result = Optional.of(mro);
+      cache.put(cls, result);
+      return result;
     }
     if (!visiting.add(cls)) {
       // Cycle detected — treat as failure.
@@ -84,10 +109,9 @@ final class ClassTypeMroUtils {
 
     List<List<ClassType>> lists = new ArrayList<>();
     for (ClassType parent : parentTypes) {
-      Optional<List<ClassType>> parentMro = compute(parent, cache, visiting);
+      Optional<List<ClassType>> parentMro = compute(parent, cache, visiting, stripVirtualAbcInheritance);
       if (parentMro.isEmpty()) {
-        // A parent itself has an invalid MRO — Python would have raised TypeError
-        // when that parent was defined, so this class is not the root cause.
+        // A parent's MRO is invalid — Python would have raised TypeError there, not here.
         visiting.remove(cls);
         cache.put(cls, Optional.empty());
         return Optional.empty();
@@ -110,10 +134,7 @@ final class ClassTypeMroUtils {
     return result;
   }
 
-  /**
-   * Performs the C3 merge of the given lists. Returns the merged sequence, or {@code null} if no
-   * valid merge exists (i.e. the MRO has a conflict).
-   */
+  /** Returns the C3 merge of {@code lists}, or {@code null} if no valid merge exists. */
   @CheckForNull
   private static List<ClassType> c3Merge(List<List<ClassType>> lists) {
     List<ClassType> result = new ArrayList<>();
@@ -131,10 +152,7 @@ final class ClassTypeMroUtils {
     }
   }
 
-  /**
-   * Returns the first list head that does not appear as a non-head entry in any list, or {@code null}
-   * if no such head exists (merge failure).
-   */
+  /** Returns the first list head that doesn't appear as a non-head in any list, or {@code null}. */
   @CheckForNull
   private static ClassType findFirstValidMergeHead(List<List<ClassType>> lists) {
     for (List<ClassType> list : lists) {

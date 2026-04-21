@@ -968,6 +968,67 @@ public class ClassTypeTest {
   }
 
   @Test
+  void wouldHaveValidMro_ignores_typeshed_virtual_abc_inheritance_for_dict() {
+    // typeshed declares `class dict(MutableMapping[_KT, _VT], Generic[_KT, _VT])`, but at runtime
+    // dict only inherits from `object` and the MutableMapping relationship is a virtual-subclass
+    // registration via `abc.ABCMeta.register()`. C3 succeeds at runtime for class N(MutableMapping, dict).
+    List<ClassType> types = classTypes(
+      "from collections.abc import MutableMapping",
+      "class Holder(MutableMapping, dict): ..."
+    );
+    ClassType holder = types.get(0);
+    assertThat(holder.superClasses()).hasSize(2);
+    var bases = holder.superClasses().stream()
+      .map(sw -> (ClassType) sw.type())
+      .toList();
+    assertThat(ClassType.wouldHaveValidMro(bases)).isTrue();
+  }
+
+  @Test
+  void wouldHaveValidMro_handles_user_subclass_of_builtin_container() {
+    // class MyDict(dict): ...; class X(MutableMapping, MyDict): ... is valid at runtime because
+    // MyDict's runtime MRO is [MyDict, dict, object] (no MutableMapping) — the typeshed link from
+    // dict to MutableMapping is fictional.
+    List<ClassType> types = classTypes(
+      "from collections.abc import MutableMapping",
+      "class MyDict(dict): ...",
+      "class X(MutableMapping, MyDict): ..."
+    );
+    ClassType x = types.get(1);
+    var bases = x.superClasses().stream()
+      .map(sw -> (ClassType) sw.type())
+      .toList();
+    assertThat(ClassType.wouldHaveValidMro(bases)).isTrue();
+  }
+
+  @Test
+  void wouldHaveValidMro_still_detects_real_conflict_with_builtin_container() {
+    // class MyDict(dict): ...; class X(dict, MyDict): ... is rejected at runtime because dict
+    // appears before its own subclass.
+    List<ClassType> types = classTypes(
+      "class MyDict(dict): ...",
+      "class X(dict, MyDict): ..."
+    );
+    ClassType x = types.get(1);
+    var bases = x.superClasses().stream()
+      .map(sw -> (ClassType) sw.type())
+      .toList();
+    assertThat(ClassType.wouldHaveValidMro(bases)).isFalse();
+  }
+
+  @Test
+  void wouldHaveValidMro_rejects_object_before_builtin_container() {
+    // class X(object, dict): ... is rejected at runtime ("Cannot create a consistent MRO …") because
+    // dict.__mro__ ends with object, so object must come after dict. The runtime-view MRO must keep
+    // the object tail to catch this — otherwise stripping dict's typeshed parents to just [dict]
+    // would let the merge succeed (false negative).
+    var objectType = (ClassType) PROJECT_LEVEL_TYPE_TABLE.getType("object");
+    var dictType = (ClassType) PROJECT_LEVEL_TYPE_TABLE.getType("dict");
+    assertThat(ClassType.wouldHaveValidMro(List.of(objectType, dictType))).isFalse();
+    assertThat(ClassType.wouldHaveValidMro(List.of(dictType, objectType))).isTrue();
+  }
+
+  @Test
   void mro_unresolved_hierarchy_returns_empty() {
     // class Child(Unknown): ...  <- unresolved parent
     List<ClassType> types = classTypes(

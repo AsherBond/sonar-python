@@ -86,13 +86,14 @@ public class MultipleInheritanceMROConflictCheck extends PythonSubscriptionCheck
   /**
    * Detects an MRO conflict: either via C3 when every base is fully resolved, or otherwise only
    * when {@link #findAncestorConflictIndex} finds an earlier base that is a strict superclass of a
-   * later base in our type graph (same structural issue as {@code class C(A, B)} with {@code B}
-   * subclassing {@code A}).
+   * later base. Both paths use a runtime-faithful view of built-in containers — see
+   * {@link ClassType#wouldHaveValidMro(List)}.
    */
   private static boolean hasMroConflict(List<ClassType> types, int conflictIndex) {
-    return isFullyResolved(types)
-      ? !ClassType.wouldHaveValidMro(types)
-      : (conflictIndex >= 0);
+    if (isFullyResolved(types)) {
+      return !ClassType.wouldHaveValidMro(types);
+    }
+    return conflictIndex >= 0;
   }
 
   /**
@@ -110,7 +111,10 @@ public class MultipleInheritanceMROConflictCheck extends PythonSubscriptionCheck
 
   /**
    * Returns the index {@code i} of the first base class that is an ancestor of some later base
-   * class at index {@code j > i}, or {@code -1} if no such pair exists.
+   * class at index {@code j > i}, or {@code -1} if no such pair exists. Paths from any later base
+   * that pass through a virtual-ABC-subclassing builtin are cut off, so typeshed-only ABC edges
+   * (e.g. {@code dict → MutableMapping}) are not treated as real ancestry — see
+   * {@link #isOrExtendsClassAtRuntime(ClassType, ClassType)}.
    */
   private static int findAncestorConflictIndex(List<ClassType> types) {
     for (int i = 0; i < types.size() - 1; i++) {
@@ -128,7 +132,7 @@ public class MultipleInheritanceMROConflictCheck extends PythonSubscriptionCheck
     }
     for (int j = i + 1; j < types.size(); j++) {
       ClassType typeJ = types.get(j);
-      if (typeJ != null && isOrExtendsClass(typeJ, typeI)) {
+      if (typeJ != null && isOrExtendsClassAtRuntime(typeJ, typeI)) {
         return true;
       }
     }
@@ -136,11 +140,12 @@ public class MultipleInheritanceMROConflictCheck extends PythonSubscriptionCheck
   }
 
   /**
-   * Returns {@code true} if {@code candidate} is or extends {@code ancestor} (i.e., {@code ancestor}
-   * appears anywhere in {@code candidate}'s type hierarchy). Uses reference equality since
-   * {@link ClassType} instances are canonical singletons within a single analysis.
+   * Returns {@code true} if {@code ancestor} appears in {@code candidate}'s runtime type hierarchy.
+   * Traversal stops at virtual-ABC-subclassing builtins so their typeshed-only ABC parents are not
+   * reachable; see {@link ClassType#wouldHaveValidMro(List)}. Uses reference equality
+   * since {@link ClassType} instances are canonical within a single analysis.
    */
-  private static boolean isOrExtendsClass(ClassType candidate, ClassType ancestor) {
+  private static boolean isOrExtendsClassAtRuntime(ClassType candidate, ClassType ancestor) {
     Set<PythonType> visited = new HashSet<>();
     Deque<PythonType> queue = new ArrayDeque<>();
     queue.add(candidate);
@@ -152,7 +157,7 @@ public class MultipleInheritanceMROConflictCheck extends PythonSubscriptionCheck
       if (current == ancestor) {
         return true;
       }
-      if (current instanceof ClassType ct) {
+      if (current instanceof ClassType ct && !ct.isVirtualAbcSubclassingBuiltin()) {
         enqueueDirectSuperclasses(ct, queue);
       }
     }
