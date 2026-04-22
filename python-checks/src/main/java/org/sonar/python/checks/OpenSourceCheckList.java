@@ -217,6 +217,7 @@ public class OpenSourceCheckList {
       EmptyFunctionCheck.class,
       EmptyNestedBlockCheck.class,
       EmptyStringRepetitionCheck.class,
+      EnumerateUnpackingCheck.class,
       ExceptionGroupCheck.class,
       ExceptionCauseTypeCheck.class,
       ExceptionNotThrownCheck.class,

@@ -1,0 +1,24 @@
+<p>This rule raises an issue when a loop iterates over <code>enumerate()</code> but accesses list elements by index instead of unpacking the value directly from the enumeration.</p>
+<h2>Why is this an issue?</h2>
+<p>The <code>enumerate()</code> function provides both the index and the value of each element when iterating over a sequence. When you only unpack the index and then use it to subscript the original list, the value is already available from <code>enumerate()</code> and the subscript operation is redundant.</p>
+<p>This pattern results in unnecessary operations and reduced readability.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+fruits = ['apple', 'banana', 'cherry']
+
+for i, _ in enumerate(fruits):
+    print(f"Index {i}: {fruits[i]}")  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+fruits = ['apple', 'banana', 'cherry']
+
+for i, fruit in enumerate(fruits):
+    print(f"Index {i}: {fruit}")
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/functions.html#enumerate">enumerate()</a></li>
+</ul>
