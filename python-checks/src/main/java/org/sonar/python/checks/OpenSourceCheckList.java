@@ -263,6 +263,7 @@ public class OpenSourceCheckList {
       GraphemeClustersInClassesCheck.class,
       GraphQLDenialOfServiceCheck.class,
       GraphQLIntrospectionCheck.class,
+      GroupByIteratorReuseCheck.class,
       GroupReplacementCheck.class,
       HardCodedCredentialsCheck.class,
       HardCodedCredentialsEntropyCheck.class,
