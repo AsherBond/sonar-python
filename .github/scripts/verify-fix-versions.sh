@@ -46,8 +46,20 @@ get_commits_since_tag() {
 
 extract_jira_tickets() {
   local commits="$1"
+  local tickets
+  local extract_exit_code=0
   # Extract SONARPY-XXXX patterns, remove duplicates, and sort
-  echo "$commits" | grep -oE "${JIRA_PROJECT_KEY}-[0-9]+" | sort -u
+  set +e
+  tickets=$(printf '%s\n' "$commits" | grep -oE "${JIRA_PROJECT_KEY}-[0-9]+" | sort -u)
+  extract_exit_code=$?
+  set -e
+
+  if [[ "$extract_exit_code" -gt 1 ]]; then
+    echo "Error: Failed to extract Jira tickets from commits" >&2
+    exit 1
+  fi
+
+  printf '%s' "$tickets"
 }
 
 build_jql_query() {
@@ -292,5 +304,4 @@ main() {
 }
 
 main "$@"
-
 
