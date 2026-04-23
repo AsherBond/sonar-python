@@ -1,0 +1,65 @@
+<p>This rule raises an issue when a membership test using <code>in</code> or <code>not in</code> is performed on an empty collection literal such as
+<code>[]</code>, <code>{}</code>, <code>set()</code>, <code>tuple()</code>, or <code>frozenset()</code>.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, the membership operators <code>in</code> and <code>not in</code> test whether a value exists in a collection. When the collection is
+empty, these tests always produce predictable results:</p>
+<ul>
+  <li><code>x in []</code> is always <code>False</code> because the value cannot exist in an empty collection</li>
+  <li><code>x not in []</code> is always <code>True</code> because the value is indeed not in an empty collection</li>
+</ul>
+<p>This pattern typically indicates one of three problems:</p>
+<ul>
+  <li><strong>dead code</strong>: the check serves no purpose and should be removed</li>
+  <li><strong>logic error</strong>: the collection should have been populated before the membership test</li>
+  <li><strong>incomplete implementation</strong>: the code was started but never finished</li>
+</ul>
+<p>Consider this example:</p>
+<pre>
+if user_id in []:
+    grant_access()
+</pre>
+<p>This condition will never be true, so <code>grant_access()</code> will never be called. The code is either incomplete, meaning the list should
+contain authorized user IDs, or the check is unnecessary and should be removed.</p>
+<p>The issue applies to all Python collection types:</p>
+<ul>
+  <li>empty list: <code>[]</code></li>
+  <li>empty dict: <code>{}</code>, which creates an empty dictionary, not a set. When used with <code>in</code>, it tests keys.</li>
+  <li>empty set: <code>set()</code></li>
+  <li>empty tuple: <code>()</code> or <code>tuple()</code></li>
+  <li>empty frozenset: <code>frozenset()</code></li>
+</ul>
+<h3>What is the potential impact?</h3>
+<p>This issue can lead to bugs where conditions never evaluate as expected, causing:</p>
+<ul>
+  <li><strong>dead code paths</strong>: code that can never be reached</li>
+  <li><strong>security vulnerabilities</strong>: authorization checks that never pass or always pass</li>
+  <li><strong>logic errors</strong>: incorrect program behavior due to conditions that do not work as intended</li>
+</ul>
+<p>The severity depends on the context. An authorization check that always fails could be a critical security issue, while a redundant check might
+only affect code maintainability.</p>
+<h2>How to fix it</h2>
+<p>If the collection should contain values, populate it with the appropriate elements before performing the membership test.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+if user_id in []:  # Noncompliant: empty list
+    grant_access()
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+if user_id in ["admin", "user123", "moderator"]:
+    grant_access()
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/reference/expressions.html#membership-test-operations">Membership test
+  operations</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/tutorial/datastructures.html">Data Structures</a></li>
+</ul>
+<h3>Related rules</h3>
+<ul>
+  <li>{rule:python:S2583} - Conditionals should not always evaluate to the same value</li>
+  <li>{rule:python:S1145} - Useless "if(true) {…​}" and "if(false){…​}" blocks should be removed</li>
+</ul>
+

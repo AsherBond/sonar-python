@@ -213,6 +213,7 @@ public class OpenSourceCheckList {
       EmailSendingCheck.class,
       EmptyAlternativeCheck.class,
       EmptyCollectionConstructorCheck.class,
+      EmptyCollectionMembershipTestCheck.class,
       EmptyGroupCheck.class,
       EmptyFunctionCheck.class,
       EmptyNestedBlockCheck.class,

@@ -1,0 +1,25 @@
+{
+  "title": "Membership tests should not use empty collections",
+  "type": "BUG",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "pitfall",
+    "suspicious"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8503",
+  "sqKey": "S8503",
+  "scope": "All",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM",
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  }
+}
