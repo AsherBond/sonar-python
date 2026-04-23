@@ -47,4 +47,10 @@ class UselessStatementCheckTest {
   void test_ignore_manifest() {
     PythonCheckVerifier.verifyNoIssue("src/test/resources/checks/__manifest__.py", new UselessStatementCheck());
   }
+
+  @Test
+  void test_marimo() {
+    PythonCheckVerifier.verify("src/test/resources/checks/uselessStatement/uselessStatementMarimo.py", new UselessStatementCheck());
+  }
+
 }

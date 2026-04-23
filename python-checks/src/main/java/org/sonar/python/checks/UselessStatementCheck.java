@@ -47,6 +47,7 @@ import org.sonar.plugins.python.api.tree.Tree.Kind;
 import org.sonar.plugins.python.api.tree.UnaryExpression;
 import org.sonar.plugins.python.api.tree.WithItem;
 import org.sonar.plugins.python.api.tree.WithStatement;
+import org.sonar.python.checks.utils.MarimoUtils;
 import org.sonar.python.tree.TreeUtils;
 
 @Rule(key = "S905")
@@ -136,16 +137,40 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
     if (isAnAirflowException((Expression) tree, ctx)) {
       return;
     }
+    if (isAMarimoException((Expression) tree, ctx)) {
+      return;
+    }
     ctx.addIssue(tree, MESSAGE);
   }
 
   private static boolean isAnAirflowException(Expression expression, SubscriptionContext ctx) {
     if (isWithinAirflowContext(expression, ctx)) {
       StatementList statementList = (StatementList) TreeUtils.firstAncestorOfKind(expression, Kind.STATEMENT_LIST);
-      return Optional.ofNullable(statementList).map(StatementList::statements).map(statements -> statements.get(statements.size() - 1))
+      return Optional.ofNullable(statementList)
+        .map(StatementList::statements)
+        .map(statements -> statements.get(statements.size() - 1))
         .filter(lastStatement -> lastStatement.equals(TreeUtils.firstAncestorOfKind(expression, Kind.EXPRESSION_STMT))).isPresent();
     }
     return false;
+  }
+
+  private static boolean isAMarimoException(Expression expression, SubscriptionContext ctx) {
+    return MarimoUtils.isTreeInMarimoCell(expression, ctx) && isLastExpressionInFunction(expression);
+  }
+
+  private static boolean isLastExpressionInFunction(Expression expr) {
+    FunctionDef functionDef = TreeUtils.firstAncestorOfClass(expr, FunctionDef.class);
+    if (functionDef == null) {
+      return false;
+    }
+    StatementList statementList = functionDef.body();
+
+    Tree expressionStmt = TreeUtils.firstAncestorOfKind(expr, Kind.EXPRESSION_STMT);
+    return statementList.statements().stream()
+      .filter(s -> s.is(Kind.EXPRESSION_STMT))
+      .reduce((first, second) -> second)
+      .filter(lastExprStmt -> lastExprStmt.equals(expressionStmt))
+      .isPresent();
   }
 
   private static boolean isWithinIgnoredContext(Tree tree, SubscriptionContext ctx) {

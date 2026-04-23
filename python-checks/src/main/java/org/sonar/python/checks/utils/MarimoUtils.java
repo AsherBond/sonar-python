@@ -43,11 +43,31 @@ public class MarimoUtils {
     return functionDef.decorators().stream().anyMatch(decorator -> isAppCellDecorator(decorator, ctx));
   }
 
+  public static boolean isTreeInMarimoCell(Tree tree, SubscriptionContext ctx) {
+    FunctionDef functionDef = (FunctionDef) TreeUtils.firstAncestorOfKind(tree, Kind.FUNCDEF);
+    if (functionDef == null) {
+      return false;
+    }
+    return functionDef.decorators().stream().anyMatch(d -> isAppCell(d, ctx));
+  }
+
+  private static boolean isAppCell(Decorator decorator, SubscriptionContext ctx) {
+    return APP_CELL_MATCHER.isTrueFor(resolveDecoratorExpression(decorator), ctx);
+  }
+
+  private static boolean isAppFunction(Decorator decorator, SubscriptionContext ctx) {
+    return APP_FUNCTION_MATCHER.isTrueFor(resolveDecoratorExpression(decorator), ctx);
+  }
+
   private static boolean isAppCellDecorator(Decorator decorator, SubscriptionContext ctx) {
+    return isAppCell(decorator, ctx) || isAppFunction(decorator, ctx);
+  }
+
+  private static Expression resolveDecoratorExpression(Decorator decorator) {
     Expression expr = decorator.expression();
     if (expr instanceof CallExpression callExpr) {
-      expr = callExpr.callee();
+      return callExpr.callee();
     }
-    return APP_CELL_MATCHER.isTrueFor(expr, ctx) || APP_FUNCTION_MATCHER.isTrueFor(expr, ctx);
+    return expr;
   }
 }
