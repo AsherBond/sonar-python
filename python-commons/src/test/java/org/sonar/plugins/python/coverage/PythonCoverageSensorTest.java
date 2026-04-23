@@ -317,13 +317,104 @@ class PythonCoverageSensorTest {
   }
 
   @Test
+  void should_resolve_relative_source_against_project_base_dir() throws Exception {
+    Path projectBaseDir = tmpDir.resolve(".tests/resources/python-app");
+    Path sourceDir = Files.createDirectories(projectBaseDir.resolve("my_app"));
+    Path sourceFile = sourceDir.resolve("__init__.py");
+    Files.writeString(sourceFile, "print('hello')\n", UTF_8);
+
+    Path report = projectBaseDir.resolve("coverage.xml");
+    Files.writeString(report, """
+      <?xml version="1.0" ?>
+      <coverage branch-rate="0.0" line-rate="1.0" timestamp="1" version="4.4.2">
+        <sources>
+          <source>my_app</source>
+        </sources>
+        <packages>
+          <package branch-rate="0.0" complexity="0.0" line-rate="1.0" name="my_app">
+            <classes>
+              <class branch-rate="0.0" complexity="0.0" filename="__init__.py" line-rate="1.0" name="__init__.py">
+                <lines>
+                  <line branch="false" hits="1" number="1"/>
+                </lines>
+              </class>
+            </classes>
+          </package>
+        </packages>
+      </coverage>
+      """, UTF_8);
+
+    SensorContextTester sensorContext = SensorContextTester.create(projectBaseDir.toFile());
+    MapSettings sensorSettings = new MapSettings();
+    sensorSettings.setProperty(PythonCoverageSensor.REPORT_PATHS_KEY, "coverage.xml");
+    sensorContext.setSettings(sensorSettings);
+
+    DefaultInputFile inputFile = TestInputFileBuilder.create("moduleKey", "my_app/__init__.py")
+      .setModuleBaseDir(projectBaseDir)
+      .setLanguage("py")
+      .setType(Type.MAIN)
+      .initMetadata(TestUtils.fileContent(sourceFile.toFile(), StandardCharsets.UTF_8))
+      .build();
+    sensorContext.fileSystem().add(inputFile);
+
+    coverageSensor.execute(sensorContext);
+
+    assertThat(sensorContext.lineHits("moduleKey:my_app/__init__.py", 1)).isOne();
+  }
+
+  @Test
+  void should_resolve_absolute_source_path_independently_of_project_base_dir() throws Exception {
+    Path projectBaseDir = tmpDir.resolve(".tests/resources/python-app-abs");
+    Path sourceDir = Files.createDirectories(projectBaseDir.resolve("my_app"));
+    Path sourceFile = sourceDir.resolve("__init__.py");
+    Files.writeString(sourceFile, "print('hello')\n", UTF_8);
+
+    String absoluteSourceDir = sourceDir.toAbsolutePath().toString();
+    Path report = projectBaseDir.resolve("coverage.xml");
+    Files.writeString(report, """
+      <?xml version="1.0" ?>
+      <coverage branch-rate="0.0" line-rate="1.0" timestamp="1" version="4.4.2">
+        <sources>
+          <source>%s</source>
+        </sources>
+        <packages>
+          <package branch-rate="0.0" complexity="0.0" line-rate="1.0" name="my_app">
+            <classes>
+              <class branch-rate="0.0" complexity="0.0" filename="__init__.py" line-rate="1.0" name="__init__.py">
+                <lines>
+                  <line branch="false" hits="1" number="1"/>
+                </lines>
+              </class>
+            </classes>
+          </package>
+        </packages>
+      </coverage>
+      """.formatted(absoluteSourceDir), UTF_8);
+
+    SensorContextTester sensorContext = SensorContextTester.create(projectBaseDir.toFile());
+    MapSettings sensorSettings = new MapSettings();
+    sensorSettings.setProperty(PythonCoverageSensor.REPORT_PATHS_KEY, "coverage.xml");
+    sensorContext.setSettings(sensorSettings);
+
+    DefaultInputFile inputFile = TestInputFileBuilder.create("moduleKey", "my_app/__init__.py")
+      .setModuleBaseDir(projectBaseDir)
+      .setLanguage("py")
+      .setType(Type.MAIN)
+      .initMetadata(TestUtils.fileContent(sourceFile.toFile(), StandardCharsets.UTF_8))
+      .build();
+    sensorContext.fileSystem().add(inputFile);
+
+    coverageSensor.execute(sensorContext);
+
+    assertThat(sensorContext.lineHits("moduleKey:my_app/__init__.py", 1)).isOne();
+  }
+
+  @Test
   void should_warn_if_source_is_not_directory() {
     settings.setProperty(PythonCoverageSensor.REPORT_PATHS_KEY, "coverage_source_invalid_directory.xml");
     coverageSensor.execute(context);
-    File file1 = new File("src/test/resources/org/sonar/plugins/python/coverage-reports/sources/file1.py");
-    File file2 = new File("src/test/resources/org/sonar/plugins/python/coverage-reports/sources/file2.py");
-    String message1 = "Invalid directory path in 'source' element: " + file1.getPath();
-    String message2 = "Invalid directory path in 'source' element: " + file2.getPath();
+    String message1 = "Invalid directory path in 'source' element: sources" + File.separator + "file1.py";
+    String message2 = "Invalid directory path in 'source' element: sources" + File.separator + "file2.py";
     assertThat(logTester.logs(Level.WARN)).contains(message1);
     assertThat(logTester.logs(Level.WARN)).contains(message2);
     verify(analysisWarnings, times(1)).addUnique("The following error(s) occurred while trying to import coverage report:" + System.lineSeparator() + message1 + System.lineSeparator() + message2);

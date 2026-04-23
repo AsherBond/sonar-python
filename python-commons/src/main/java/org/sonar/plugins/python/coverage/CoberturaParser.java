@@ -80,7 +80,8 @@ public class CoberturaParser {
     while (source.getNext() != null) {
       String path = FilenameUtils.normalize(source.collectDescendantText());
       if (!StringUtils.isBlank(path)) {
-        File baseDirectory = new File(path);
+        File sourcePath = new File(path);
+        File baseDirectory = sourcePath.isAbsolute() ? sourcePath : new File(defaultBaseDirectory, path);
         if (baseDirectory.isDirectory()) {
           baseDirectories.add(baseDirectory);
         } else {

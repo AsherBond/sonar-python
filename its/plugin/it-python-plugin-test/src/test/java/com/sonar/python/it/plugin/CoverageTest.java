@@ -33,10 +33,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CoverageTest {
 
   private static final String COVERAGE_PROJECT = "projects/coverage_project";
+  private static final String COVERAGE_PROJECT_PROJECT_BASEDIR = "projects/coverage_project_projectbasedir";
   @RegisterExtension
   public static final ConcurrentOrchestratorExtension ORCHESTRATOR = TestsUtils.dynamicOrchestrator;
 
   private static final String PROJECT_KEY = "coverage_project";
+  private static final String PROJECT_BASEDIR_KEY = "coverage_project_projectbasedir";
   private static final String LINES_TO_COVER = "lines_to_cover";
   private static final String COVERAGE = "coverage";
   private static final String LINE_COVERAGE = "line_coverage";
@@ -121,6 +123,30 @@ public class CoverageTest {
     }
     assertThat(nbLog).isEqualTo(1);
     assertThat(TestsUtils.getMeasureAsDouble(PROJECT_KEY, COVERAGE)).isZero();
+  }
+
+  @Test
+  void relative_source_paths_are_resolved_from_project_base_dir() {
+    File projectDir = new File(COVERAGE_PROJECT_PROJECT_BASEDIR);
+    File projectBaseDir = new File(projectDir, "app");
+    SonarScanner build = ORCHESTRATOR.createSonarScanner()
+      .setProjectDir(projectDir)
+      .setProperty("sonar.projectKey", PROJECT_BASEDIR_KEY)
+      .setProperty("sonar.projectName", PROJECT_BASEDIR_KEY)
+      .setProperty("sonar.projectVersion", "1")
+      .setProperty("sonar.sourceEncoding", "UTF8")
+      .setProperty("sonar.projectBaseDir", projectBaseDir.getAbsolutePath())
+      .setProperty("sonar.sources", "src")
+      .setProperty(COVERAGE_REPORT_PATHS, "coverage.xml");
+
+    ORCHESTRATOR.executeBuild(build);
+
+    Map<String, Integer> expected = new HashMap<>();
+    expected.put(LINES_TO_COVER, 1);
+    expected.put(COVERAGE, 100);
+    expected.put(LINE_COVERAGE, 100);
+    expected.put(BRANCH_COVERAGE, null);
+    TestsUtils.assertProjectMeasures(PROJECT_BASEDIR_KEY, expected);
   }
 
 }
