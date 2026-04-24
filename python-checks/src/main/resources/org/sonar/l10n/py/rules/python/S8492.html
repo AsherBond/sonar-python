@@ -1,0 +1,48 @@
+<p>This rule raises an issue when code checks if an element exists in a set using the <code>in</code> operator before calling <code>remove()</code> on
+that element.</p>
+<h2>Why is this an issue?</h2>
+<p>Checking whether an element exists in a set before removing it is unnecessary:</p>
+<pre>
+if x in my_set:
+    my_set.remove(x)
+</pre>
+<p>This pattern has two problems:</p>
+<ol>
+  <li><strong>double lookup</strong>: the code performs two hash table lookups - one for the membership check (<code>in</code>) and another for the
+  removal (<code>remove()</code>). Each lookup has a cost.</li>
+  <li><strong>less idiomatic</strong>: Python provides the <code>discard()</code> method specifically for this use case. Using it makes the code more
+  Pythonic and signals intent more clearly.</li>
+</ol>
+<p>The <code>discard()</code> method combines both operations into a single call. It removes the element if it exists and does nothing otherwise:</p>
+<pre>
+my_set.discard(x)  # Single lookup, no exception if x is not present
+</pre>
+<h3>What is the potential impact?</h3>
+<p>Using <code>discard()</code> improves readability and removes a redundant hash table lookup. In loops or performance-critical code, eliminating
+these extra lookups can provide measurable improvements.</p>
+<h2>How to fix it</h2>
+<p>Replace the conditional check and <code>remove()</code> call with a single <code>discard()</code> call. The <code>discard()</code> method safely
+removes the element if it exists and does nothing if it does not, without raising an exception.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+my_set = {1, 2, 3, 4, 5}
+value = 3
+
+if value in my_set:  # Noncompliant
+    my_set.remove(value)
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+my_set = {1, 2, 3, 4, 5}
+value = 3
+
+my_set.discard(value)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#frozenset.discard"><code>set.discard()</code> method</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#frozenset.remove"><code>set.remove()</code> method</a></li>
+</ul>
+

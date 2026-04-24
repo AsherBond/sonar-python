@@ -402,6 +402,7 @@ public class OpenSourceCheckList {
       SecureCookieCheck.class,
       SecureModeEncryptionAlgorithmsCheck.class,
       SelfAssignmentCheck.class,
+      SetDiscardOverRemoveCheck.class,
       SetDuplicateKeyCheck.class,
       SetUpdateOverForLoopCheck.class,
       SideEffectInTfFunctionCheck.class,

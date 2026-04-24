@@ -1,0 +1,25 @@
+{
+  "title": "\"set.discard()\" should be used instead of checking membership before removal",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2 min"
+  },
+  "tags": [
+    "performance",
+    "pythonic",
+    "idiom"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-8492",
+  "sqKey": "S8492",
+  "scope": "All",
+  "quickfix": "targeted",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CLEAR"
+  }
+}
