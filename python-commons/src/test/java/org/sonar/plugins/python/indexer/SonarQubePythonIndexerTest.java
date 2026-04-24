@@ -597,6 +597,35 @@ class SonarQubePythonIndexerTest {
   }
 
   @Test
+  void test_package_roots_from_sonar_sources_dot() throws IOException {
+    // sonar.sources=. means "scan from the project root" — must resolve to baseDir, not "/baseDir/."
+    Path tempDir = Files.createTempDirectory("sonar_sources_dot_test").toRealPath();
+    Path pkgDir = Files.createDirectories(tempDir.resolve("mypackage"));
+    Files.writeString(pkgDir.resolve("module.py"), "x = 1");
+
+    SensorContextTester tempContext = SensorContextTester.create(tempDir.toFile());
+    tempContext.fileSystem().setWorkDir(Files.createTempDirectory("workDir"));
+    tempContext.settings().setProperty("sonar.python.skipUnchanged", false);
+    tempContext.settings().setProperty("sonar.sources", ".");
+
+    PythonInputFile moduleFile = createInputFile(tempDir.toFile(),
+      "mypackage/module.py",
+      InputFile.Status.ADDED, InputFile.Type.MAIN);
+    List<PythonInputFile> inputFiles = List.of(moduleFile);
+
+    CacheContextImpl noCacheContext = new CacheContextImpl(false, new PythonWriteCacheImpl(new TestWriteCache()), new PythonReadCacheImpl(new TestReadCache()));
+    SonarQubePythonIndexer indexer = new SonarQubePythonIndexer(inputFiles, noCacheContext, tempContext, new ProjectConfigurationBuilder());
+
+    // Package root must be the base dir, not the un-normalized "/baseDir/."
+    String expectedRoot = tempDir.toFile().getAbsolutePath();
+    assertThat(indexer.packageRoots()).containsExactly(expectedRoot);
+
+    // FQN should be computed correctly using the base dir as root
+    String packageName = indexer.packageName(moduleFile);
+    assertThat(packageName).isEqualTo("mypackage");
+  }
+
+  @Test
   void test_package_roots_from_sonar_sources() throws IOException {
     // Create a temp directory with custom sources folder
     Path tempDir = Files.createTempDirectory("sonar_sources_test");

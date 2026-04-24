@@ -16,23 +16,18 @@
  */
 package org.sonar.plugins.python.indexer;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.sonar.sslr.api.AstNode;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sonar.api.batch.fs.FileSystem;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.sensor.SensorContext;
 import org.sonar.plugins.python.PythonInputFile;
@@ -109,201 +104,16 @@ public abstract class PythonIndexer {
   /**
    * Resolves package root directories for the project.
    *
-   * <p>Attempts to extract source roots from pyproject.toml and setup.py build system configurations.
-   * Falls back to sonar.sources property, conventional folders (src/, lib/), or the project base directory.
+   * <p>Delegates entirely to {@link PackageRootResolver}, which is the single source of truth
+   * for package root resolution (pyproject.toml, setup.py, fallback chain).
    *
    * @param context the sensor context containing filesystem and configuration
    * @return list of resolved package root absolute paths
    */
   protected List<String> resolvePackageRoots(SensorContext context) {
-    PackageResolutionResult result = resolvePackageRootsWithMethod(context);
+    PackageResolutionResult result = PackageRootResolver.resolve(context.fileSystem(), context.config());
     this.packageResolutionResult = result;
     return result.roots();
-  }
-
-  /**
-   * Resolves package root directories and tracks the resolution method used.
-   *
-   * @param context the sensor context containing filesystem and configuration
-   * @return resolution result including roots and method information
-   */
-  protected PackageResolutionResult resolvePackageRootsWithMethod(SensorContext context) {
-    FileSystem fileSystem = context.fileSystem();
-    File baseDir = fileSystem.baseDir();
-
-    // Try both pyproject.toml and setup.py
-    List<PyProjectExtractionResult> pyprojectResults = extractSourceRootsFromPyProjectTomlWithBuildSystem(fileSystem);
-    List<ConfigSourceRoots> setupPyRoots = extractSourceRootsFromSetupPy(fileSystem);
-
-    boolean hasPyproject = pyprojectResults.stream().anyMatch(PyProjectExtractionResult::hasRoots);
-    boolean hasSetupPy = !setupPyRoots.isEmpty();
-    List<String> combinedRoots = Stream.concat(
-        pyprojectResults.stream().map(PyProjectExtractionResult::configRoots).flatMap( crs -> crs.toAbsolutePaths().stream()),
-        setupPyRoots.stream().flatMap(csr -> csr.toAbsolutePaths().stream())
-      )
-      .distinct()
-      .toList();
-
-    List<String> adjustedRoots = adjustRoots(combinedRoots, baseDir);
-    LOG.debug("Resolved package roots from build configuration: {}", adjustedRoots);
-
-    if (hasPyproject && hasSetupPy) {
-      return PackageResolutionResult.fromBothPyProjectAndSetupPy(adjustedRoots, getCombinedBuildSystem(pyprojectResults));
-    }
-
-    if (hasPyproject) {
-      return PackageResolutionResult.fromPyProjectToml(adjustedRoots, getCombinedBuildSystem(pyprojectResults));
-    }
-
-    if (hasSetupPy) {
-      return PackageResolutionResult.fromSetupPy(adjustedRoots);
-    }
-
-    // Fallback to PackageRootResolver
-    return resolveFallback(context.config(), baseDir);
-  }
-
-  /**
-   * Determine the build system (if multiple files have different build systems, use MULTIPLE)
-   * @param pyprojectResults the list of pyproject extraction results to analyze
-   * @return the combined build system result for the project
-   */
-  private static PackageResolutionResult.BuildSystem getCombinedBuildSystem(List<PyProjectExtractionResult> pyprojectResults) {
-    return pyprojectResults.stream()
-      .map(PyProjectExtractionResult::buildSystem)
-      .filter(bs -> bs != PackageResolutionResult.BuildSystem.NONE)
-      .distinct()
-      .reduce((a, b) -> PackageResolutionResult.BuildSystem.MULTIPLE)
-      .orElse(PackageResolutionResult.BuildSystem.NONE);
-  }
-
-  /**
-   * Resolves fallback package roots when no build configuration is available.
-   */
-  private static PackageResolutionResult resolveFallback(org.sonar.api.config.Configuration config, File baseDir) {
-    String[] sonarSources = config.getStringArray(PackageRootResolver.SONAR_SOURCES_KEY);
-    if (sonarSources.length > 0) {
-      List<String> roots = toAbsolutePaths(java.util.Arrays.asList(sonarSources), baseDir);
-      List<String> adjustedRoots = adjustRoots(roots, baseDir);
-      LOG.debug("Resolved package roots from fallback (sonar.sources or conventional folders): {}", adjustedRoots);
-      return PackageResolutionResult.fromSonarSources(adjustedRoots);
-    }
-
-    List<String> conventionalFolders = findConventionalFolders(baseDir);
-    if (!conventionalFolders.isEmpty()) {
-      List<String> roots = toAbsolutePaths(conventionalFolders, baseDir);
-      List<String> adjustedRoots = adjustRoots(roots, baseDir);
-      LOG.debug("Resolved package roots from fallback (sonar.sources or conventional folders): {}", adjustedRoots);
-      return PackageResolutionResult.fromConventionalFolders(adjustedRoots);
-    }
-
-    List<String> baseDirRoots = List.of(baseDir.getAbsolutePath());
-    LOG.debug("Using project base directory as package root (fallback)");
-    return PackageResolutionResult.fromBaseDir(baseDirRoots);
-  }
-
-  private static List<String> adjustRoots(List<String> roots, File baseDir) {
-    return roots.stream()
-      .map(root -> {
-        File rootFile = new File(root).isAbsolute() ? new File(root) : new File(baseDir, root);
-        return adjustPackageRoot(rootFile, baseDir);
-      })
-      .distinct()
-      .toList();
-  }
-
-  private static List<String> toAbsolutePaths(List<String> paths, File baseDir) {
-    return paths.stream()
-      .map(path -> new File(baseDir, path).getAbsolutePath())
-      .toList();
-  }
-
-  private static List<String> findConventionalFolders(File baseDir) {
-    List<String> folders = new java.util.ArrayList<>();
-    for (String folderName : PackageRootResolver.CONVENTIONAL_FOLDERS) {
-      File folder = new File(baseDir, folderName);
-      if (folder.exists() && folder.isDirectory()) {
-        folders.add(folderName);
-      }
-    }
-    return folders;
-  }
-
-  /**
-   * Adjusts a package root by walking up the directory tree if it contains __init__.py.
-   *
-   * <p>If the root directory contains __init__.py, it's part of a package, not the package root.
-   * We walk up to find the first parent directory without __init__.py.
-   *
-   * @param root the potential package root directory
-   * @param baseDir the project base directory (we don't walk above this)
-   * @return the adjusted package root absolute path
-   */
-  @VisibleForTesting
-  static String adjustPackageRoot(File root, File baseDir) {
-    File current = root;
-    String baseDirPath = baseDir.getAbsolutePath();
-    while (current != null && !current.getAbsolutePath().equals(baseDirPath)) {
-      File initFile = new File(current, "__init__.py");
-      if (!initFile.exists()) {
-        break;
-      }
-      current = current.getParentFile();
-    }
-    if (current == null) {
-      return baseDirPath;
-    }
-    return current.getAbsolutePath();
-  }
-
-  /**
-   * Recursively finds files with the given filename in the project directory.
-   *
-   * @param fileSystem the file system to search in
-   * @param filename the filename to search for (e.g., "pyproject.toml", "setup.py")
-   * @return stream of matching files
-   */
-  private static Stream<File> findFilesRecursively(FileSystem fileSystem, String filename) {
-    try {
-      return Files.walk(fileSystem.baseDir().toPath())
-        .filter(Files::isRegularFile)
-        .filter(path -> filename.equals(path.getFileName().toString()))
-        .map(Path::toFile);
-    } catch (IOException e) {
-      return Stream.empty();
-    }
-  }
-
-  /**
-   * Extracts source root directories from pyproject.toml files in the project.
-   *
-   * @param fileSystem the file system to search for pyproject.toml
-   * @return extraction result with source roots and build system info
-   */
-  private static List<PyProjectExtractionResult> extractSourceRootsFromPyProjectTomlWithBuildSystem(FileSystem fileSystem) {
-    List<PyProjectExtractionResult> results = findFilesRecursively(fileSystem, "pyproject.toml")
-      .map(PyProjectTomlSourceRoots::extractWithBuildSystem)
-      .filter(PyProjectExtractionResult::hasRoots)
-      .toList();
-
-    if (results.isEmpty()) {
-      return List.of();
-    }
-
-    return results;
-  }
-
-  /**
-   * Extracts source root directories from setup.py files in the project.
-   *
-   * @param fileSystem the file system to search for setup.py
-   * @return list of ConfigSourceRoots containing config file locations and their relative roots
-   */
-  private static List<ConfigSourceRoots> extractSourceRootsFromSetupPy(FileSystem fileSystem) {
-    return findFilesRecursively(fileSystem, "setup.py")
-      .map(SetupPySourceRoots::extractWithLocation)
-      .filter(csr -> !csr.relativeRoots().isEmpty())
-      .toList();
   }
 
   public void collectPackageNames(List<PythonInputFile> inputFiles) {
