@@ -17,7 +17,6 @@
 package org.sonar.plugins.python.indexer;
 
 import com.sonar.sslr.api.AstNode;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
