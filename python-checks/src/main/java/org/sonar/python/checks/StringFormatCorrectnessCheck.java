@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -34,8 +35,10 @@ import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.DictionaryLiteral;
 import org.sonar.plugins.python.api.tree.DictionaryLiteralElement;
 import org.sonar.plugins.python.api.tree.Expression;
+import org.sonar.plugins.python.api.tree.FunctionDef;
 import org.sonar.plugins.python.api.tree.KeyValuePair;
 import org.sonar.plugins.python.api.tree.Name;
+import org.sonar.plugins.python.api.tree.Parameter;
 import org.sonar.plugins.python.api.tree.QualifiedExpression;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.StringElement;
@@ -43,6 +46,8 @@ import org.sonar.plugins.python.api.tree.StringLiteral;
 import org.sonar.plugins.python.api.tree.Token;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.python.checks.utils.Expressions;
+import org.sonar.python.checks.utils.MarimoUtils;
+import org.sonar.python.tree.TreeUtils;
 
 @Rule(key = "S3457")
 public class StringFormatCorrectnessCheck extends AbstractStringFormatCheck {
@@ -126,19 +131,49 @@ public class StringFormatCorrectnessCheck extends AbstractStringFormatCheck {
   }
 
   private static boolean isMarimoSqlArgument(StringLiteral literal, SubscriptionContext ctx) {
+    return enclosingCallExpression(literal)
+      .filter(callExpression -> MARIMO_SQL_MATCHER.isTrueFor(callExpression.callee(), ctx)
+        || isInjectedMarimoSqlCall(callExpression, literal, ctx))
+      .isPresent();
+  }
+
+  private static Optional<CallExpression> enclosingCallExpression(StringLiteral literal) {
     Tree parent = literal.parent();
     if (!(parent instanceof RegularArgument)) {
-      return false;
+      return Optional.empty();
     }
     Tree argList = parent.parent();
     if (!(argList instanceof ArgList)) {
-      return false;
+      return Optional.empty();
     }
     Tree callParent = argList.parent();
     if (!(callParent instanceof CallExpression callExpression)) {
+      return Optional.empty();
+    }
+    return Optional.of(callExpression);
+  }
+
+  private static boolean isInjectedMarimoSqlCall(CallExpression callExpression, StringLiteral literal, SubscriptionContext ctx) {
+    if (!isMoSqlCall(callExpression) || !MarimoUtils.isTreeInMarimoCell(literal, ctx)) {
       return false;
     }
-    return MARIMO_SQL_MATCHER.isTrueFor(callExpression.callee(), ctx);
+    return Optional.ofNullable(TreeUtils.firstAncestorOfClass(literal, FunctionDef.class))
+      .map(FunctionDef::parameters)
+      .stream()
+      .flatMap(parameters -> parameters.nonTuple().stream())
+      .map(Parameter::name)
+      .filter(Objects::nonNull)
+      .anyMatch(name -> "mo".equals(name.name()));
+  }
+
+  private static boolean isMoSqlCall(CallExpression callExpression) {
+    if (!(callExpression.callee() instanceof QualifiedExpression qualifiedExpression)) {
+      return false;
+    }
+    if (!"sql".equals(qualifiedExpression.name().name())) {
+      return false;
+    }
+    return qualifiedExpression.qualifier() instanceof Name qualifier && "mo".equals(qualifier.name());
   }
 
   private static void checkLoggerLog(SubscriptionContext ctx, CallExpression callExpression) {

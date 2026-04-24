@@ -142,3 +142,62 @@ def marimo_sql():
         engine=engine
     )
 
+
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+
+    engine = None
+    return engine, mo
+
+
+# Previously flagged FP: marimo injects `mo` into a later cell parameter.
+@app.cell
+def _(engine, mo):
+    mo.sql(
+        f"""
+        SELECT id
+        FROM users
+        """,
+        engine=engine
+    )
+
+
+@app.cell
+def _(engine, mo):
+    mo.query(
+        f"SELECT id FROM users"  # Noncompliant {{Add replacement fields or use a normal string instead of an f-string.}}
+    )
+
+
+@app.cell
+def _(engine, session):
+    session.sql(
+        f"SELECT id FROM users"  # Noncompliant {{Add replacement fields or use a normal string instead of an f-string.}}
+    )
+
+
+def not_marimo_cell(engine, mo):
+    mo.sql(
+        f"SELECT id FROM users"  # Noncompliant {{Add replacement fields or use a normal string instead of an f-string.}}
+    )
+
+
+@app.cell
+def _(engine, mo):
+    alias = mo
+    alias.sql(
+        f"SELECT id FROM users"  # Noncompliant {{Add replacement fields or use a normal string instead of an f-string.}}
+    )
+
+
+@app.cell
+def _(engine, mo):
+    sql(
+        f"SELECT id FROM users"  # Noncompliant {{Add replacement fields or use a normal string instead of an f-string.}}
+    )
