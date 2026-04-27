@@ -16,6 +16,8 @@
  */
 package org.sonar.python.checks;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
@@ -40,6 +42,7 @@ import org.sonar.python.tree.TreeUtils;
 public class EnumerateUnpackingCheck extends PythonSubscriptionCheck {
 
   private static final String MESSAGE = "Unpack the value from 'enumerate()' directly instead of using an index lookup.";
+  private static final String SECONDARY_MESSAGE = "Replace this index lookup with the unpacked value.";
   private static final TypeMatcher ENUMERATE_MATCHER = TypeMatchers.isType("enumerate");
 
   @Override
@@ -84,26 +87,30 @@ public class EnumerateUnpackingCheck extends PythonSubscriptionCheck {
       return;
     }
 
-    boolean hasSubscriptWriteTarget = TreeUtils.hasDescendant(forStatement.body(),
-      node -> isMatchingSubscript(node, indexSymbol, iterableSymbol)
-        && isSubscriptWriteTarget((SubscriptionExpression) node));
+    List<SubscriptionExpression> matchingSubscripts = new ArrayList<>();
+    collectMatchingSubscripts(forStatement.body(), indexSymbol, iterableSymbol, matchingSubscripts);
 
-    if (hasSubscriptWriteTarget) {
+    if (matchingSubscripts.isEmpty()) {
+      return;
+    }
+    if (matchingSubscripts.stream().anyMatch(EnumerateUnpackingCheck::isSubscriptWriteTarget)) {
       return;
     }
 
-    boolean hasRedundantSubscript = TreeUtils.hasDescendant(forStatement.body(),
-      node -> isMatchingSubscript(node, indexSymbol, iterableSymbol));
+    PreciseIssue issue = ctx.addIssue(call, MESSAGE);
+    matchingSubscripts.forEach(subscript -> issue.secondary(subscript, SECONDARY_MESSAGE));
+  }
 
-    if (hasRedundantSubscript) {
-      ctx.addIssue(call, MESSAGE);
+  private static void collectMatchingSubscripts(Tree tree, SymbolV2 indexSymbol, SymbolV2 iterableSymbol, List<SubscriptionExpression> result) {
+    for (Tree child : tree.children()) {
+      if (child instanceof SubscriptionExpression subscription && isMatchingSubscript(subscription, indexSymbol, iterableSymbol)) {
+        result.add(subscription);
+      }
+      collectMatchingSubscripts(child, indexSymbol, iterableSymbol, result);
     }
   }
 
-  private static boolean isMatchingSubscript(Tree node, SymbolV2 indexSymbol, SymbolV2 iterableSymbol) {
-    if (!(node instanceof SubscriptionExpression subscription)) {
-      return false;
-    }
+  private static boolean isMatchingSubscript(SubscriptionExpression subscription, SymbolV2 indexSymbol, SymbolV2 iterableSymbol) {
     if (subscription.subscripts().expressions().size() != 1) {
       return false;
     }

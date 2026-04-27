@@ -4,19 +4,34 @@ def noncompliant_basic():
     for i, _ in enumerate(lst):  # Noncompliant {{Unpack the value from 'enumerate()' directly instead of using an index lookup.}}
 #               ^^^^^^^^^^^^^^
         print(lst[i])
+#             ^^^^^^< {{Replace this index lookup with the unpacked value.}}
 
 
 def noncompliant_start_zero_keyword():
     colors = ['red', 'green', 'blue']
     for i, _ in enumerate(colors, start=0):  # Noncompliant
+#               ^^^^^^^^^^^^^^^^^^^^^^^^^^
         print(colors[i])
+#             ^^^^^^^^^< {{Replace this index lookup with the unpacked value.}}
 
 
 def noncompliant_rhs_of_augmented_assignment():
     items = "abcdef"
     result = ""
     for ind, _ in enumerate(items):  # Noncompliant
+#                 ^^^^^^^^^^^^^^^^
         result += items[ind]
+#                 ^^^^^^^^^^< {{Replace this index lookup with the unpacked value.}}
+
+
+def noncompliant_multiple_usages():
+    lst = ['a', 'b', 'c']
+    for i, _ in enumerate(lst):  # Noncompliant
+#               ^^^^^^^^^^^^^^
+        print(lst[i])
+#             ^^^^^^< {{Replace this index lookup with the unpacked value.}}
+        print(lst[i].upper())
+#             ^^^^^^< {{Replace this index lookup with the unpacked value.}}
 
 
 def compliant_proper_unpacking():
@@ -88,6 +103,13 @@ def compliant_write_assignment():
     items = ['a', 'b', 'c']
     for i, item in enumerate(items):
         items[i] = item.upper()
+
+
+def compliant_mixed_read_and_write():
+    items = ['a', 'b', 'c']
+    for i, _ in enumerate(items):
+        print(items[i])
+        items[i] = items[i].upper()
 
 
 def compliant_write_augmented_assignment():
