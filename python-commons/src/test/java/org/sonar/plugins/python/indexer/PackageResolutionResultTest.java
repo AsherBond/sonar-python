@@ -96,7 +96,8 @@ class PackageResolutionResultTest {
       PackageResolutionResult.ResolutionMethod.PYPROJECT_AND_SETUP_PY,
       PackageResolutionResult.ResolutionMethod.SONAR_SOURCES,
       PackageResolutionResult.ResolutionMethod.CONVENTIONAL_FOLDERS,
-      PackageResolutionResult.ResolutionMethod.BASE_DIR
+      PackageResolutionResult.ResolutionMethod.BASE_DIR,
+      PackageResolutionResult.ResolutionMethod.LEGACY_INIT_PY
     );
   }
 

@@ -39,10 +39,11 @@ import org.sonar.api.config.Configuration;
  * <ul>
  *   <li>Extraction from pyproject.toml build system configurations</li>
  *   <li>Extraction from setup.py configurations</li>
+ *   <li>When no build config files exist: returns empty roots so that FQN resolution falls back
+ *       to legacy __init__.py-based detection (see
+ *       {@link org.sonar.python.semantic.SymbolUtils#pythonPackageName})</li>
  *   <li>Fallback when build files exist but provide no roots: conventional folders (src/, lib/),
  *       then sonar.sources, then base directory</li>
- *   <li>Fallback when no build files exist: sonar.sources, then conventional folders (src/, lib/),
- *       then base directory</li>
  * </ul>
  */
 public class PackageRootResolver {
@@ -59,9 +60,9 @@ public class PackageRootResolver {
    * Resolves package root directories for the project.
    *
    * <p>Attempts to extract source roots from pyproject.toml and setup.py build system configurations.
-   * Falls back to different priority orders depending on whether build files exist: when build files
-   * are present but provide no source roots, conventional folders take priority over sonar.sources;
-   * when no build files exist at all, sonar.sources takes priority over conventional folders.
+   * When no build config files exist, returns empty roots so that FQN resolution falls back to
+   * legacy __init__.py-based detection. When build config files exist but provide no source roots,
+   * conventional folders take priority over sonar.sources, then base directory as last resort.
    *
    * @param fileSystem the Sonar file system providing the base directory
    * @param config the Sonar configuration
@@ -74,6 +75,13 @@ public class PackageRootResolver {
     List<File> pyprojectFiles = findFilesRecursively(fileSystem, "pyproject.toml");
     List<File> setupPyFiles = findFilesRecursively(fileSystem, "setup.py");
     boolean hasBuildConfigFiles = !pyprojectFiles.isEmpty() || !setupPyFiles.isEmpty();
+
+    // When no build config files exist, FQN resolution relies on legacy __init__.py detection.
+    // Returning empty roots causes SymbolUtils.pythonPackageName to use pythonPackageNameLegacy().
+    if (!hasBuildConfigFiles) {
+      LOG.debug("No build config files found; using legacy __init__.py-based package detection");
+      return PackageResolutionResult.fromLegacyInitPy();
+    }
 
     // Extract source roots from discovered files
     List<PyProjectExtractionResult> pyprojectResults = pyprojectFiles.stream()
@@ -109,23 +117,17 @@ public class PackageRootResolver {
       return PackageResolutionResult.fromSetupPy(adjustedRoots);
     }
 
-    return resolveFallback(config, baseDir, hasBuildConfigFiles);
+    return resolveFallback(config, baseDir);
   }
 
   /**
-   * Resolves fallback package roots when no build system configuration provides source roots.
+   * Resolves fallback package roots when build config files exist but provide no source roots.
    *
-   * <p>When build config files (pyproject.toml / setup.py) exist but provide no source roots,
-   * the priority order is: conventional folders (src/, lib/), then sonar.sources, then base directory.
-   *
-   * <p>When NO build config files exist at all, the priority order is: sonar.sources, then
-   * conventional folders (src/, lib/), then base directory.
+   * <p>Priority order: conventional folders (src/, lib/), then sonar.sources, then base directory.
    */
-  private static PackageResolutionResult resolveFallback(Configuration config, File baseDir, boolean hasBuildConfigFiles) {
-    List<BiFunction<Configuration, File, Optional<PackageResolutionResult>>> candidates = hasBuildConfigFiles
-      ? List.of(PackageRootResolver::tryConventionalFolders, PackageRootResolver::trySonarSources)
-      : List.of(PackageRootResolver::trySonarSources, PackageRootResolver::tryConventionalFolders);
-
+  private static PackageResolutionResult resolveFallback(Configuration config, File baseDir) {
+    List<BiFunction<Configuration, File, Optional<PackageResolutionResult>>> candidates =
+      List.of(PackageRootResolver::tryConventionalFolders, PackageRootResolver::trySonarSources);
     for (BiFunction<Configuration, File, Optional<PackageResolutionResult>> candidate : candidates) {
       Optional<PackageResolutionResult> result = candidate.apply(config, baseDir);
       if (result.isPresent()) {

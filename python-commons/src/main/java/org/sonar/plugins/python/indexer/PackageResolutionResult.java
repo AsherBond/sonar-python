@@ -46,7 +46,9 @@ public record PackageResolutionResult(
     /** Resolved from conventional folders (src/, lib/) */
     CONVENTIONAL_FOLDERS,
     /** Fallback to project base directory */
-    BASE_DIR
+    BASE_DIR,
+    /** No build config files found; FQN resolution uses legacy __init__.py detection */
+    LEGACY_INIT_PY
   }
 
   /**
@@ -88,5 +90,9 @@ public record PackageResolutionResult(
 
   public static PackageResolutionResult fromBaseDir(List<String> roots) {
     return new PackageResolutionResult(roots, ResolutionMethod.BASE_DIR, BuildSystem.NONE);
+  }
+
+  public static PackageResolutionResult fromLegacyInitPy() {
+    return new PackageResolutionResult(List.of(), ResolutionMethod.LEGACY_INIT_PY, BuildSystem.NONE);
   }
 }

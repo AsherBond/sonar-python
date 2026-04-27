@@ -55,103 +55,39 @@ class PackageRootResolverTest {
     return config;
   }
 
-  // ─── resolve() — fallback: conventional folders ───────────────────────────
+  // ─── resolve() — no build config files → LEGACY_INIT_PY ──────────────────
 
   @Test
-  void resolve_noConfigFiles_fallsBackToSrcFolder() throws IOException {
+  void resolve_noBuildConfigFiles_returnsLegacyInitPy() {
+    File baseDir = tempDir.toFile();
+
+    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
+
+    assertThat(result.roots()).isEmpty();
+    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.LEGACY_INIT_PY);
+  }
+
+  @Test
+  void resolve_noBuildConfigFiles_srcFolderPresent_stillReturnsLegacyInitPy() throws IOException {
+    // Conventional folders are ignored when no build config files exist
     Files.createDirectory(tempDir.resolve("src"));
     File baseDir = tempDir.toFile();
 
     PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
 
-    assertThat(result.roots()).containsExactly(new File(baseDir, "src").getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.CONVENTIONAL_FOLDERS);
+    assertThat(result.roots()).isEmpty();
+    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.LEGACY_INIT_PY);
   }
 
   @Test
-  void resolve_noConfigFiles_fallsBackToLibFolder() throws IOException {
-    Files.createDirectory(tempDir.resolve("lib"));
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
-
-    assertThat(result.roots()).containsExactly(new File(baseDir, "lib").getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.CONVENTIONAL_FOLDERS);
-  }
-
-  @Test
-  void resolve_noConfigFiles_fallsBackToBothSrcAndLib() throws IOException {
-    Files.createDirectory(tempDir.resolve("src"));
-    Files.createDirectory(tempDir.resolve("lib"));
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
-
-    assertThat(result.roots()).containsExactly(
-      new File(baseDir, "src").getAbsolutePath(),
-      new File(baseDir, "lib").getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.CONVENTIONAL_FOLDERS);
-  }
-
-  @Test
-  void resolve_noConfigFiles_sonarSourcesWinsOverConventionalFolders() throws IOException {
-    // src/ exists AND sonar.sources is set — sonar.sources should win (no build files)
-    Files.createDirectory(tempDir.resolve("src"));
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), sonarSources("app"));
-
-    assertThat(result.roots()).containsExactly(new File(baseDir, "app").getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.SONAR_SOURCES);
-  }
-
-  // ─── resolve() — fallback: sonar.sources ──────────────────────────────────
-
-  @Test
-  void resolve_noConfigFilesNoConventionalFolders_fallsBackToSonarSources() {
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), sonarSources("sources", "lib"));
-
-    assertThat(result.roots()).containsExactly(
-      new File(baseDir, "sources").getAbsolutePath(),
-      new File(baseDir, "lib").getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.SONAR_SOURCES);
-  }
-
-  @Test
-  void resolve_dotSonarSources_returnsBaseDirAbsolutePath() {
-    // sonar.sources=. must normalize to baseDir, not produce "/baseDir/."
+  void resolve_noBuildConfigFiles_sonarSourcesIgnored() {
+    // sonar.sources is also irrelevant when no build config files exist
     File baseDir = tempDir.toFile();
 
     PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), sonarSources("."));
 
-    assertThat(result.roots()).containsExactly(baseDir.getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.SONAR_SOURCES);
-  }
-
-  // ─── resolve() — fallback: base directory ─────────────────────────────────
-
-  @Test
-  void resolve_noConfigFilesNoConventionalFoldersNoSonarSources_fallsBackToBaseDir() {
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
-
-    assertThat(result.roots()).containsExactly(baseDir.getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.BASE_DIR);
-  }
-
-  @Test
-  void resolve_srcExistsAsFile_fallsBackToSonarSourcesThenBaseDir() throws IOException {
-    // src is a file, not a dir — conventional folder check fails
-    Files.createFile(tempDir.resolve("src"));
-    File baseDir = tempDir.toFile();
-
-    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), noSonarSources());
-
-    assertThat(result.roots()).containsExactly(baseDir.getAbsolutePath());
-    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.BASE_DIR);
+    assertThat(result.roots()).isEmpty();
+    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.LEGACY_INIT_PY);
   }
 
   @Test

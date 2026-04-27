@@ -536,11 +536,12 @@ class SonarQubePythonIndexerTest {
   @Test
   void test_package_roots_fallback_to_src_folder() throws IOException {
     // Create a temp directory with src folder but no pyproject.toml
-    Path tempDir = Files.createTempDirectory("src_fallback_test");
+    Path tempDir = Files.createTempDirectory("src_fallback_test").toRealPath();
     Path srcDir = tempDir.resolve(Path.of("src", "mypackage"));
     Files.createDirectories(srcDir);
     Files.writeString(srcDir.resolve("__init__.py"), "");
     Files.writeString(srcDir.resolve("module.py"), "x = 1");
+    Files.writeString(tempDir.resolve("pyproject.toml"), "");
 
     SensorContextTester tempContext = SensorContextTester.create(tempDir.toFile());
     tempContext.fileSystem().setWorkDir(Files.createTempDirectory("workDir"));
@@ -569,10 +570,11 @@ class SonarQubePythonIndexerTest {
   @Test
   void test_package_roots_fallback_to_base_dir() throws IOException {
     // Create a temp directory without src folder or pyproject.toml
-    Path tempDir = Files.createTempDirectory("basedir_fallback_test");
+    Path tempDir = Files.createTempDirectory("basedir_fallback_test").toRealPath();
     Path pkgDir = Files.createDirectories(tempDir.resolve("mypackage"));
     Files.writeString(pkgDir.resolve("__init__.py"), "");
     Files.writeString(pkgDir.resolve("module.py"), "x = 1");
+    Files.writeString(tempDir.resolve("pyproject.toml"), "");
 
     SensorContextTester tempContext = SensorContextTester.create(tempDir.toFile());
     tempContext.fileSystem().setWorkDir(Files.createTempDirectory("workDir"));
@@ -602,6 +604,7 @@ class SonarQubePythonIndexerTest {
     Path tempDir = Files.createTempDirectory("sonar_sources_dot_test").toRealPath();
     Path pkgDir = Files.createDirectories(tempDir.resolve("mypackage"));
     Files.writeString(pkgDir.resolve("module.py"), "x = 1");
+    Files.writeString(tempDir.resolve("pyproject.toml"), "");
 
     SensorContextTester tempContext = SensorContextTester.create(tempDir.toFile());
     tempContext.fileSystem().setWorkDir(Files.createTempDirectory("workDir"));
@@ -628,8 +631,9 @@ class SonarQubePythonIndexerTest {
   @Test
   void test_package_roots_from_sonar_sources() throws IOException {
     // Create a temp directory with custom sources folder
-    Path tempDir = Files.createTempDirectory("sonar_sources_test");
-    Path libDir = tempDir.resolve(Path.of("lib", "mylib"));
+    Path tempDir = Files.createTempDirectory("sonar_sources_test").toRealPath();
+    Files.writeString(tempDir.resolve("pyproject.toml"), "");
+    Path libDir = tempDir.resolve(Path.of("some_lib", "mylib"));
     Files.createDirectories(libDir);
     Files.writeString(libDir.resolve("__init__.py"), "");
     Files.writeString(libDir.resolve("utils.py"), "x = 1");
@@ -637,10 +641,10 @@ class SonarQubePythonIndexerTest {
     SensorContextTester tempContext = SensorContextTester.create(tempDir.toFile());
     tempContext.fileSystem().setWorkDir(Files.createTempDirectory("workDir"));
     tempContext.settings().setProperty("sonar.python.skipUnchanged", false);
-    tempContext.settings().setProperty("sonar.sources", "lib");
+    tempContext.settings().setProperty("sonar.sources", "some_lib");
 
     PythonInputFile utilsFile = createInputFile(tempDir.toFile(),
-      "lib/mylib/utils.py",
+      "some_lib/mylib/utils.py",
       InputFile.Status.ADDED, InputFile.Type.MAIN);
     List<PythonInputFile> inputFiles = List.of(utilsFile);
 
@@ -649,7 +653,7 @@ class SonarQubePythonIndexerTest {
 
     // Package roots should come from sonar.sources
     // Use File.getAbsolutePath() for both sides to ensure consistent path representation on Windows
-    String expectedRoot = new File(tempDir.toFile(), "lib").getAbsolutePath();
+    String expectedRoot = new File(tempDir.toFile(), "some_lib").getAbsolutePath();
     assertThat(indexer.packageRoots()).containsExactly(expectedRoot);
 
     // FQN should be computed correctly

@@ -247,12 +247,14 @@ public final class PythonSensor implements Sensor {
     boolean usedSonarSources = method == PackageResolutionResult.ResolutionMethod.SONAR_SOURCES;
     boolean usedConventionalFolders = method == PackageResolutionResult.ResolutionMethod.CONVENTIONAL_FOLDERS;
     boolean usedBaseDir = method == PackageResolutionResult.ResolutionMethod.BASE_DIR;
+    boolean usedLegacyInitPy = method == PackageResolutionResult.ResolutionMethod.LEGACY_INIT_PY;
 
     sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_PYPROJECT_TOML, usedPyproject ? 1 : 0);
     sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_SETUP_PY, usedSetupPy ? 1 : 0);
     sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_SONAR_SOURCES, usedSonarSources ? 1 : 0);
     sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_CONVENTIONAL_FOLDERS, usedConventionalFolders ? 1 : 0);
     sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_BASE_DIR, usedBaseDir ? 1 : 0);
+    sensorTelemetryStorage.updateMetric(TelemetryMetricKey.PYTHON_PACKAGE_RESOLVED_VIA_LEGACY_INIT_PY, usedLegacyInitPy ? 1 : 0);
   }
 
   private void updateBuildSystemTelemetry(NamespacePackageTelemetry telemetry) {
