@@ -152,6 +152,50 @@ class PackageRootResolverTest {
     assertThat(result.get(0)).doesNotEndWith("\\.");
   }
 
+  // ─── toAbsolutePaths() — Windows path handling ───────────────────────────
+
+  @Test
+  void toAbsolutePaths_windowsAbsolutePath_notPrependedWithBaseDir() {
+    // When sonar.sources contains a Windows-style absolute path (e.g. from a Windows scanner),
+    // it must NOT be prepended with the base directory on a non-Windows system.
+    File baseDir = new File("/project/base");
+    String windowsAbsPath = "C:\\Users\\user\\mixed-language-build";
+
+    List<String> result = PackageRootResolver.toAbsolutePaths(List.of(windowsAbsPath), baseDir);
+
+    // Must not produce "/project/base/" prepended to the Windows path
+    assertThat(result).containsExactly("C:\\Users\\user\\mixed-language-build");
+  }
+
+  @Test
+  void toAbsolutePaths_windowsAbsolutePathWithForwardSlashes_notPrependedWithBaseDir() {
+    // Windows paths may also use forward slashes; they are normalised by Path.normalize()
+    File baseDir = new File("/project/base");
+    String windowsAbsPath = "C:/Users/user/mixed-language-build";
+
+    List<String> result = PackageRootResolver.toAbsolutePaths(List.of(windowsAbsPath), baseDir);
+
+    // Must not produce "/project/base/" prepended to the Windows path
+    // Forward slashes are preserved as-is by Path.normalize() on non-Windows systems
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0)).isIn("C:\\Users\\user\\mixed-language-build","C:/Users/user/mixed-language-build");
+  }
+
+  @Test
+  void trySonarSources_windowsAbsolutePath_usedDirectlyNotPrependedWithBaseDir() throws IOException {
+    // Full integration: build file exists, sonar.sources has a Windows absolute path.
+    // The resolved root should be derived from the Windows path, not baseDir + Windows path.
+    Files.writeString(tempDir.resolve("pyproject.toml"), "[project]\nname = \"myproject\"\n");
+    File baseDir = tempDir.toFile();
+    String windowsAbsPath = "C:\\Users\\user\\mixed-language-build";
+
+    PackageResolutionResult result = PackageRootResolver.resolve(mockFileSystem(baseDir), sonarSources(windowsAbsPath));
+
+    assertThat(result.method()).isEqualTo(PackageResolutionResult.ResolutionMethod.SONAR_SOURCES);
+    assertThat(result.roots()).hasSize(1);
+    assertThat(result.roots()).containsExactly("C:\\Users\\user\\mixed-language-build");
+  }
+
   // ─── adjustPackageRoot() — migrated from PythonIndexerTest ────────────────
 
   @Test

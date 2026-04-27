@@ -160,7 +160,11 @@ public class PackageRootResolver {
   }
 
   /**
-   * Converts relative path strings to normalized absolute paths under the given base directory.
+   * Converts path strings to normalized absolute paths.
+   *
+   * <p>Relative paths are resolved against the given base directory. Windows-style absolute paths
+   * (e.g. {@code C:\path\to\src} or {@code C:/path/to/src}) are used as-is without prepending the
+   * base directory, which would otherwise produce a nonsensical path on non-Windows systems.
    *
    * <p>Uses {@link Path#normalize()} to resolve {@code .} and {@code ..} components without
    * performing any I/O, so that {@code sonar.sources=.} correctly resolves to the base directory
@@ -168,8 +172,22 @@ public class PackageRootResolver {
    */
   static List<String> toAbsolutePaths(List<String> paths, File baseDir) {
     return paths.stream()
-      .map(path -> new File(baseDir, path).toPath().normalize().toString())
+      .map(path -> {
+        File file = isWindowsAbsolutePath(path) ? new File(path) : new File(baseDir, path);
+        return file.toPath().normalize().toString();
+      })
       .toList();
+  }
+
+  /**
+   * Returns {@code true} if the given path is a Windows-style absolute path (e.g. {@code C:\...}
+   * or {@code C:/...}), regardless of the current operating system.
+   */
+  private static boolean isWindowsAbsolutePath(String path) {
+    return path.length() >= 3
+      && Character.isLetter(path.charAt(0))
+      && path.charAt(1) == ':'
+      && (path.charAt(2) == '\\' || path.charAt(2) == '/');
   }
 
   private static List<String> findConventionalFolders(File baseDir) {
@@ -186,8 +204,19 @@ public class PackageRootResolver {
   private static List<String> adjustRoots(List<String> roots, File baseDir) {
     return roots.stream()
       .map(root -> {
-        File rootFile = new File(root).isAbsolute() ? new File(root) : new File(baseDir, root);
-        return adjustPackageRoot(rootFile, baseDir);
+        File rootAsFile = new File(root);
+        if (rootAsFile.isAbsolute()) {
+          // Native absolute path (works on any OS, including Windows running on Windows).
+          return adjustPackageRoot(rootAsFile, baseDir);
+        }
+        if (isWindowsAbsolutePath(root)) {
+          // Windows-style absolute path (e.g. C:\src) on a non-Windows system: File.isAbsolute()
+          // returns false, so we must not pass it to new File(baseDir, root) or getAbsolutePath()
+          // would prepend the JVM working directory. Return as-is; __init__.py traversal is not
+          // meaningful for a foreign-OS path.
+          return root;
+        }
+        return adjustPackageRoot(new File(baseDir, root), baseDir);
       })
       .distinct()
       .toList();
