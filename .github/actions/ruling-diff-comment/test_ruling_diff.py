@@ -56,6 +56,21 @@ class ParsePathTest(unittest.TestCase):
             core.parse_ruling_path(path),
         )
 
+    def test_parse_ruling_path_with_legacy_key(self) -> None:
+        path = "private/its-enterprise/ruling/src/test/resources/expected_ruling/scikit-learn/python-LineLength.json"
+        self.assertEqual(
+            ("scikit-learn", "python", "LineLength"),
+            core.parse_ruling_path(path),
+        )
+
+    def test_parse_rule_filename_rejects_empty_rule_key(self) -> None:
+        with self.assertRaises(ValueError):
+            core.parse_rule_filename("python-.json")
+
+    def test_parse_rule_filename_rejects_empty_repository(self) -> None:
+        with self.assertRaises(ValueError):
+            core.parse_rule_filename("-S1066.json")
+
 
 class DiffLogicTest(unittest.TestCase):
     def test_diff_ruling_jsons_added_issues(self) -> None:
@@ -408,9 +423,7 @@ class GitHubActionIOTest(unittest.TestCase):
             io_impl.resolve_source_path("project", "S1716.py"),
         )
 
-    def test_resolve_source_path_for_project_rulings_falls_back_to_sources_internal(
-        self,
-    ) -> None:
+    def test_resolve_source_path_for_project_rulings_falls_back_to_sources_internal(self) -> None:
         io_impl = io.GitHubActionIO()
         with tempfile.TemporaryDirectory() as tmp_dir:
             sources_ruling = f"{tmp_dir}/sources_ruling"
@@ -432,9 +445,7 @@ class GitHubActionIOTest(unittest.TestCase):
             ):
                 self.assertEqual(target, io_impl.resolve_source_path("project", "foo.py"))
 
-    def test_resolve_source_path_for_project_rulings_falls_back_to_namespace_child(
-        self,
-    ) -> None:
+    def test_resolve_source_path_for_project_rulings_falls_back_to_namespace_child(self) -> None:
         io_impl = io.GitHubActionIO()
         with tempfile.TemporaryDirectory() as tmp_dir:
             sources_ruling = f"{tmp_dir}/sources_ruling"

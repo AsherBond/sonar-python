@@ -44,8 +44,8 @@ def parse_rule_filename(filename: str) -> tuple[str, str]:
     repository, rule_key = basename.rsplit("-", 1)
     if not repository:
         raise ValueError(f"Missing repo in filename: {filename}")
-    if not rule_key.startswith("S") or not rule_key[1:].isdigit():
-        raise ValueError(f"Invalid rule key in filename: {filename}")
+    if not rule_key:
+        raise ValueError(f"Missing rule key in filename: {filename}")
     return repository, rule_key
 
 
