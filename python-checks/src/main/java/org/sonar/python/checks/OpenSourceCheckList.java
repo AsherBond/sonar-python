@@ -312,6 +312,7 @@ public class OpenSourceCheckList {
       ListIterableFirstElementCheck.class,
       LocalVariableAndParameterNameConventionCheck.class,
       LoggersConfigurationCheck.class,
+      LoggingExceptionCheck.class,
       LongIntegerWithLowercaseSuffixUsageCheck.class,
       LoopExecutingAtMostOnceCheck.class,
       LoopOverDictKeyValuesCheck.class,

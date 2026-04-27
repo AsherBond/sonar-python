@@ -1,0 +1,76 @@
+<p>This rule raises an issue when <code>logging.error()</code> is used within an exception handler (<code>except</code> block) to log exception
+information.</p>
+<h2>Why is this an issue?</h2>
+<p>When handling exceptions in Python, it’s important to capture not just the error message, but also the full traceback. The traceback shows the
+sequence of function calls that led to the exception, which is essential for understanding what went wrong and where.</p>
+<p>The <code>logging</code> module provides two methods that might seem similar:</p>
+<ul>
+  <li><code>logging.error()</code>: Logs an error message at the ERROR level</li>
+  <li><code>logging.exception()</code>: Logs an error message at the ERROR level AND automatically includes the full exception traceback</li>
+</ul>
+<p>When you’re inside an exception handler (<code>except</code> block), you’re dealing with an exception that just occurred. In this context,
+<code>logging.exception()</code> is the appropriate choice because:</p>
+<ul>
+  <li>It automatically captures the traceback without requiring <code>exc_info=True</code></li>
+  <li>It clearly signals to other developers that you’re logging an exception</li>
+  <li>It follows Python’s principle of being explicit about intent</li>
+</ul>
+<p>Using <code>logging.error()</code> in an exception handler means you’re either:</p>
+<ul>
+  <li>Missing the traceback entirely (if you don’t pass <code>exc_info=True</code>), making debugging much harder</li>
+  <li>Writing more verbose code (if you do pass <code>exc_info=True</code>) when a simpler, more idiomatic option exists</li>
+</ul>
+<p>The <code>logging.exception()</code> method is specifically designed for this use case and is the established Python idiom for logging
+exceptions.</p>
+<p>If omitting the traceback is intentional, explicitly passing <code>exc_info=False</code> (or <code>exc_info=None</code>) makes that intent clear
+and is therefore not flagged.</p>
+<h3>What is the potential impact?</h3>
+<p>Using <code>logging.error()</code> instead of <code>logging.exception()</code> in exception handlers reduces code maintainability and makes
+debugging more difficult.</p>
+<p>When traceback information is missing from logs, developers must spend additional time reproducing issues to understand their root cause. In
+production environments, where issues may be intermittent or difficult to reproduce, missing traceback information can make it nearly impossible to
+diagnose problems effectively.</p>
+<p>Additionally, using <code>logging.error()</code> with <code>exc_info=True</code> instead of the more idiomatic <code>logging.exception()</code>
+makes the code less readable and may confuse developers who are unfamiliar with this pattern.</p>
+<h2>How to fix it</h2>
+<p>Replace <code>logging.error()</code> with <code>logging.exception()</code> when logging within an exception handler. If you were using
+<code>exc_info=True</code>, you can remove it since <code>logging.exception()</code> includes traceback information by default.</p>
+<p>If you intentionally do not want to log the traceback, explicitly pass <code>exc_info=False</code> to <code>logging.error()</code> to signal that
+intent.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+import logging
+
+try:
+    raise ValueError("Invalid value")
+except ValueError:
+    logging.error("Exception occurred", exc_info=True)  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+import logging
+
+try:
+    raise ValueError("Invalid value")
+except ValueError:
+    logging.exception("Exception occurred")
+</pre>
+<p>If logging the traceback is not desired, explicitly opt out with <code>exc_info=False</code>:</p>
+<pre>
+import logging
+
+try:
+    raise ValueError("Invalid value")
+except ValueError:
+    logging.error("Exception occurred", exc_info=False)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python logging documentation - logging.exception() - <a href="https://docs.python.org/3/library/logging.html#logging.exception">Official Python
+  documentation for the logging.exception() method</a></li>
+  <li>Python logging HOWTO - <a href="https://docs.python.org/3/howto/logging.html">Python’s official guide to using the logging module
+  effectively</a></li>
+</ul>
+

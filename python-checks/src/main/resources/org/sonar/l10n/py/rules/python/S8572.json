@@ -1,0 +1,24 @@
+{
+  "title": "\"logging.exception()\" should be used instead of \"logging.error()\" in exception handlers",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "logging",
+    "exception"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8572",
+  "sqKey": "S8572",
+  "scope": "Main",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "COMPLETE"
+  }
+}
