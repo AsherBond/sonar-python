@@ -161,7 +161,7 @@ public class PredictableSaltCheck extends PythonSubscriptionCheck {
       return false;
     }
     var issue = ctx.addIssue(argument, DIFFERENT_SALT_THAN_KEY_MATERIAL_MESSAGE);
-    usagesInDeriveCall.stream().forEach(arg -> issue.secondary(arg, SALT_IS_USED_HERE_MESSAGE));
+    usagesInDeriveCall.forEach(arg -> issue.secondary(arg, SALT_IS_USED_HERE_MESSAGE));
     return true;
   }
 
