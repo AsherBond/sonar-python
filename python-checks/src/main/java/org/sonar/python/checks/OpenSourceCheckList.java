@@ -286,6 +286,7 @@ public class OpenSourceCheckList {
       ImpossibleBoundariesCheck.class,
       IncompatibleOperandsCheck.class,
       InconsistentTupleReturnCheck.class,
+      IncompleteComparisonMethodsCheck.class,
       InconsistentTypeHintCheck.class,
       IncorrectExceptionTypeCheck.class,
       IncorrectParameterDatetimeConstructorsCheck.class,

@@ -1,0 +1,108 @@
+<p>This rule raises an issue when a class defines one or more rich comparison methods (<code>__lt__</code>, <code>__le__</code>, <code>__gt__</code>,
+<code>__ge__</code>) without using the <code>functools.total_ordering</code> decorator or defining all of them.</p>
+<h2>Why is this an issue?</h2>
+<p>Python classes can implement rich comparison methods to enable sorting and comparison operations. These methods include:</p>
+<ul>
+  <li><code>__lt__</code> for less than (<code>&lt;</code>)</li>
+  <li><code>__le__</code> for less than or equal to (<code>&lt;=</code>)</li>
+  <li><code>__gt__</code> for greater than (<code>&gt;</code>)</li>
+  <li><code>__ge__</code> for greater than or equal to (<code>&gt;=</code>)</li>
+  <li><code>__eq__</code> for equality (<code>==</code>)</li>
+  <li><code>__ne__</code> for inequality (<code>!=</code>)</li>
+</ul>
+<p>When you define only some of these methods, Python cannot automatically infer the missing ones. This leads to inconsistent behavior:</p>
+<ul>
+  <li>sorting algorithms may fail or produce incorrect results</li>
+  <li>comparison operations may raise <code>TypeError</code> exceptions</li>
+  <li>code that expects symmetric comparisons, such as <code>a &lt; b</code> being true implying <code>b &gt; a</code> is also true, may behave
+  unexpectedly</li>
+</ul>
+<p>For example, if a class defines only <code>__lt__</code>, then <code>a &lt; b</code> will work, but <code>a &gt; b</code> will fall back to
+Python’s default behavior of comparing object identities, which is almost never what you want.</p>
+<p>Python provides the <code>functools.total_ordering</code> decorator specifically to solve this problem. It allows you to define just
+<code>__eq__</code> and one other comparison method, and it automatically generates the rest. This ensures consistent and correct comparison behavior
+across all operations.</p>
+<h3>What is the potential impact?</h3>
+<p>Incomplete comparison method implementations can cause several problems:</p>
+<ul>
+  <li><strong>Sorting failures</strong>: built-in functions like <code>sorted()</code> or list methods like <code>sort()</code> may raise exceptions
+  or produce incorrect ordering</li>
+  <li><strong>Unexpected comparison results</strong>: code that relies on comparison symmetry may produce wrong results, leading to logic errors</li>
+  <li><strong>Maintenance difficulties</strong>: future developers may not realize that certain comparison operations are missing, leading to bugs
+  when they use those operations</li>
+  <li><strong>Container behavior</strong>: data structures like heaps or priority queues that depend on comparisons may malfunction</li>
+</ul>
+<p>While this typically will not cause security vulnerabilities, it can lead to application logic errors that are difficult to diagnose and debug.</p>
+<h2>How to fix it</h2>
+<p>Either use the <code>@functools.total_ordering</code> decorator and define <code>__eq__</code> and one ordering method, typically
+<code>__lt__</code>, or define all four ordering methods (<code>__lt__</code>, <code>__le__</code>, <code>__gt__</code>, <code>__ge__</code>)
+explicitly.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    def __lt__(self, other):  # Noncompliant
+        return self.age &lt; other.age
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+from functools import total_ordering
+
+@total_ordering
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    def __eq__(self, other):
+        return self.age == other.age
+
+    def __lt__(self, other):
+        return self.age &lt; other.age
+</pre>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __lt__(self, other):  # Noncompliant
+        return self.x &lt; other.x
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="2" data-diff-type="compliant">
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __lt__(self, other):
+        return self.x &lt; other.x
+
+    def __le__(self, other):
+        return self.x &lt;= other.x
+
+    def __gt__(self, other):
+        return self.x &gt; other.x
+
+    def __ge__(self, other):
+        return self.x &gt;= other.x
+</pre>
+<h3>How does this work?</h3>
+<p>The <code>@functools.total_ordering</code> decorator automatically generates all missing comparison methods from the ones you define. This ensures
+consistent and correct comparison behavior across all operations.</p>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a
+  href="https://docs.python.org/3/library/functools.html#functools.total_ordering"><code>functools.total_ordering</code></a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/reference/datamodel.html#object.&lt;em&gt;lt&lt;/em&gt;">Rich Comparison
+  Methods</a></li>
+  <li>PEP 207 - <a href="https://peps.python.org/pep-0207/">Rich Comparisons</a></li>
+</ul>
+
