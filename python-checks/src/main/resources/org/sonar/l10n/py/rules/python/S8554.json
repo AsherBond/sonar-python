@@ -1,0 +1,26 @@
+{
+  "title": "Logging statements should follow Python best practices",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "convention",
+    "performance",
+    "pitfall"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8554",
+  "sqKey": "S8554",
+  "scope": "All",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "LOW",
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "CONVENTIONAL"
+  }
+}

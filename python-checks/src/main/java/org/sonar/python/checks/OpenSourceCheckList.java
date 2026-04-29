@@ -314,6 +314,7 @@ public class OpenSourceCheckList {
       LocalVariableAndParameterNameConventionCheck.class,
       LoggersConfigurationCheck.class,
       LoggingExceptionCheck.class,
+      LoggingBestPracticesCheck.class,
       LongIntegerWithLowercaseSuffixUsageCheck.class,
       LoopExecutingAtMostOnceCheck.class,
       LoopOverDictKeyValuesCheck.class,
