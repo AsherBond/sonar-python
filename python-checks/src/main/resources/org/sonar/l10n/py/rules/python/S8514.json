@@ -1,0 +1,25 @@
+{
+  "title": "Dataclass attributes should use type annotations",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "pitfall",
+    "confusing"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8514",
+  "sqKey": "S8514",
+  "scope": "All",
+  "quickfix": "targeted",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "HIGH",
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CONVENTIONAL"
+  }
+}
