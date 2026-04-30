@@ -1,0 +1,72 @@
+<p>Using a mutable or stateful value as a default for a dataclass attribute is rarely what developers intend. The value is evaluated only once, when
+the class is defined, so every instance shares the same object.</p>
+<h2>Why is this an issue?</h2>
+<p>Default values for dataclass attributes are evaluated once when the class is defined, not each time an instance is created. This is a fundamental
+aspect of how Python evaluates default values.</p>
+<p>When the default is produced by calling a function such as <code>datetime.now()</code> or <code>uuid.uuid4()</code>, or by a mutable container like
+<code>[]</code> or <code>list()</code>, the value is computed once and reused across every instance of the dataclass. Every instance therefore ends up
+with the same object.</p>
+<pre>
+@dataclass
+class Event:
+    timestamp: datetime = datetime.now()  # Noncompliant
+    tags: list = []  # Noncompliant
+
+event1 = Event()
+event2 = Event()
+event1.tags.append("x")
+# event2.tags is also ["x"] — tags is the same list object.
+# event1.timestamp and event2.timestamp are both the class-definition time.
+</pre>
+<p>In this example, <code>event1</code> and <code>event2</code> share the same <code>tags</code> list and the same timestamp.</p>
+<h3>What is the potential impact?</h3>
+<p>Using such defaults can cause reliability issues:</p>
+<ul>
+  <li><strong>Broken uniqueness</strong>: attributes meant to be unique per instance, such as UUIDs or timestamps, become identical across all
+  instances.</li>
+  <li><strong>State sharing bugs</strong>: mutating the default through one instance silently affects every other instance and every instance created
+  in the future.</li>
+  <li><strong>Incorrect business logic</strong>: time-sensitive operations use a stale timestamp captured at class definition, which leads to
+  incorrect ordering, expiration, or logging.</li>
+  <li><strong>Hard-to-diagnose bugs</strong>: the issue may not be visible in short-lived tests, but appears in production where instances are created
+  over a longer period of time or mutate their state.</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Use <code>field(default_factory=…​)</code> instead. The <code>default_factory</code> parameter accepts a callable, without parentheses, that is
+invoked each time a new instance is created, so each instance receives a fresh value.</p>
+<p>The <code>default_factory</code> expects a callable with no arguments. If the function requires arguments, wrap it in a <code>lambda</code> or use
+<code>functools.partial</code>.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+@dataclass
+class Event:
+    timestamp: datetime = datetime.now()  # Noncompliant
+    event_id: uuid.UUID = uuid.uuid4()  # Noncompliant
+    tags: list = []  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+from dataclasses import dataclass, field
+
+@dataclass
+class Event:
+    timestamp: datetime = field(default_factory=datetime.now)
+    event_id: uuid.UUID = field(default_factory=uuid.uuid4)
+    tags: list = field(default_factory=list)
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python dataclasses documentation - <a href="https://docs.python.org/3/library/dataclasses.html">Official Python documentation for the
+  dataclasses module</a></li>
+  <li>Python dataclasses - default_factory - <a href="https://docs.python.org/3/library/dataclasses.html#dataclasses.field">Documentation on the
+  field() function and default_factory parameter</a></li>
+  <li>Ruff RUF009 - <a href="https://docs.astral.sh/ruff/rules/function-call-in-dataclass-default-argument/">Ruff’s documentation for rule
+  RUF009</a></li>
+</ul>
+<h3>Related rules</h3>
+<ul>
+  <li>{rule:python:S6891} - Mutable objects should not be used as default parameter values</li>
+</ul>
+

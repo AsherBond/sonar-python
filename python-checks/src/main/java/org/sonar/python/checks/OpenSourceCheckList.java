@@ -181,6 +181,7 @@ public class OpenSourceCheckList {
       CorsCheck.class,
       CorsMiddlewareOrderingCheck.class,
       CsrfDisabledCheck.class,
+      DataClassFunctionCallDefaultCheck.class,
       DataClassOnEnumCheck.class,
       DataclassFieldDefinitionCheck.class,
       DataEncryptionCheck.class,
