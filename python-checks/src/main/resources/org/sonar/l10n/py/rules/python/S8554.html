@@ -3,36 +3,32 @@ deprecated methods, or attribute name collisions in the 'extra' parameter.</p>
 <h2>Why is this an issue?</h2>
 <p>Python’s logging module has specific patterns that ensure correctness, performance, and maintainability. Violating these patterns can lead to
 several problems:</p>
-<h2>Eager String Formatting</h2>
+<h3>Eager String Formatting</h3>
 <p>When you format strings before passing them to logging methods (using f-strings, <code>.format()</code>, <code>%</code> operator, or <code>+</code>
 concatenation), Python performs the string formatting operation immediately, even if the log message won’t be output due to the current log level.
 This wastes CPU cycles on string operations that may never be used.</p>
 <p>The logging module supports lazy formatting by accepting format arguments as separate parameters. The formatting only occurs when the logging
 framework confirms the message will actually be logged based on the configured log level.</p>
-<h2>Deprecated Methods</h2>
+<h3>Deprecated Methods</h3>
 <p>The <code>logging.warn()</code> and <code>logging.Logger.warn()</code> methods are deprecated. While they still function, they may be removed in
 future Python versions. The recommended methods are <code>logging.warning()</code> and <code>logging.Logger.warning()</code>, which are functionally
 equivalent.</p>
-<h2>Attribute Name Collisions</h2>
+<h3>Attribute Name Collisions</h3>
 <p>The logging module’s <code>extra</code> keyword argument allows passing additional values to be included in log records. However, if the keys in
 the <code>extra</code> dictionary clash with built-in <code>LogRecord</code> attributes (such as 'name', 'msg', 'args', 'created', 'filename',
 'funcName', 'levelname', 'levelno', 'lineno', 'module', 'msecs', 'message', 'pathname', 'process', 'processName', 'relativeCreated', 'thread',
 'threadName'), a <code>KeyError</code> will be raised when the <code>LogRecord</code> is constructed, causing the logging statement to fail at
 runtime.</p>
 <h3>What is the potential impact?</h3>
-<h2>Performance Degradation</h2>
-<p>Eager string formatting can significantly impact application performance, especially in code paths with frequent logging statements. When log
-levels are configured to filter out certain messages (e.g., DEBUG messages in production), the application still pays the cost of formatting strings
-that will never be logged.</p>
-<h2>Runtime Errors</h2>
-<p>Attribute name collisions in the <code>extra</code> parameter raise <code>KeyError</code> exceptions, causing logging statements to fail
-unexpectedly.</p>
-<h2>Maintenance Issues</h2>
-<p>Using deprecated methods creates technical debt. When these methods are eventually removed from Python, code using them will break. Additionally,
-mixing deprecated and non-deprecated methods across a codebase creates inconsistency and confusion.</p>
-<h2>Inconsistent Logging</h2>
-<p>Eager formatting can lead to inconsistent behavior across different log handlers. When using lazy formatting with the <code>extra</code> parameter,
-all handlers receive the same structured data and can format it consistently according to their configuration.</p>
+<p>Performance degradation: Eager string formatting can significantly impact application performance, especially in code paths with frequent logging
+statements. When log levels are configured to filter out certain messages (for example, DEBUG messages in production), the application still pays the
+cost of formatting strings that will never be logged.</p>
+<p>Runtime errors: Attribute name collisions in the <code>extra</code> parameter raise <code>KeyError</code> exceptions, causing logging statements to
+fail unexpectedly.</p>
+<p>Maintenance issues: Using deprecated methods creates technical debt. When these methods are eventually removed from Python, code using them will
+break. Additionally, mixing deprecated and non-deprecated methods across a codebase creates inconsistency and confusion.</p>
+<p>Inconsistent logging: Eager formatting can lead to inconsistent behavior across different log handlers. When using lazy formatting with the
+<code>extra</code> parameter, all handlers receive the same structured data and can format it consistently according to their configuration.</p>
 <h2>How to fix it</h2>
 <p>Use lazy formatting by passing format arguments as separate parameters to logging methods instead of formatting strings before the call. Replace
 f-strings, <code>.format()</code>, <code>%</code> operator, and <code>+</code> concatenation with %-style placeholders and separate arguments.</p>
