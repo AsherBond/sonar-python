@@ -1,20 +1,23 @@
-<p>This rule raises an issue when a group iterator returned by <code>itertools.groupby()</code> is stored and reused after the <code>groupby</code>
-object has advanced to the next group.</p>
+<p>This rule raises an issue when a group iterator returned by <code>itertools.groupby()</code> is stored outside the loop body for later use, instead
+of being consumed immediately.</p>
 <h2>Why is this an issue?</h2>
 <p>The <code>itertools.groupby()</code> function groups consecutive items from an iterable based on a key function. It returns pairs of <code>(key,
 group_iterator)</code> where each <code>group_iterator</code> is a sub-iterator that yields items for that specific group.</p>
-<p>A critical characteristic of these group iterators is that they are consumed when the main <code>groupby</code> iterator advances to the next
-group. This means if you store a reference to a group iterator and try to use it later, it will be empty and yield no results.</p>
-<p>This behavior occurs because <code>groupby</code> uses lazy evaluation for efficiency. The group iterators share the same underlying data source,
-and advancing the main iterator invalidates previous group iterators. The problem typically manifests when storing group iterators in a collection for
-later use or when trying to iterate over the same group iterator more than once.</p>
+<p>A critical characteristic of these group iterators is that they share the same underlying data source as the main <code>groupby</code> iterator.
+Every time the outer loop advances to the next group, the previous group iterator is immediately invalidated — regardless of whether it has been
+iterated or not. Storing a raw group iterator and consuming it after the loop has moved on will always yield an empty sequence.</p>
 <h3>What is the potential impact?</h3>
 <p>When group iterators are reused, they yield no items. Your code will process empty sequences instead of the actual grouped data, leading to
 incorrect results, silent failures, and data loss. These issues can be difficult to debug because the code does not raise exceptions but simply
 produces wrong output.</p>
 <h2>How to fix it</h2>
-<p>Convert the group iterator to a list immediately when processing each group. This materializes the data and stores it in memory, allowing you to
-reuse it later.</p>
+<p>There are two correct approaches:</p>
+<ul>
+  <li><strong>Consume the group iterator immediately</strong> inside the loop body, never storing the raw iterator at all. This is the simplest
+  pattern and avoids any risk of reuse.</li>
+  <li><strong>Materialize the group iterator</strong> into a concrete collection (<code>list</code>, <code>tuple</code>, <code>set</code>, etc.)
+  before the loop advances. This allows the data to be stored and accessed later.</li>
+</ul>
 <h3>Code examples</h3>
 <h4>Noncompliant code example</h4>
 <pre data-diff-id="1" data-diff-type="noncompliant">
@@ -46,6 +49,5 @@ for key, group in groups.items():
 <h3>Documentation</h3>
 <ul>
   <li>Python Documentation - <a href="https://docs.python.org/3/library/itertools.html#itertools.groupby"><code>itertools.groupby</code></a></li>
-  <li>Python Documentation - <a href="https://docs.python.org/3/library/itertools.html#itertools-recipes">itertools Recipes</a></li>
 </ul>
 

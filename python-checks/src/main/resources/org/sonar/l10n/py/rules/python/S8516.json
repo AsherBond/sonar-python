@@ -14,7 +14,7 @@
   "ruleSpecification": "RSPEC-8516",
   "sqKey": "S8516",
   "scope": "All",
-  "quickfix": "targeted",
+  "quickfix": "partial",
   "code": {
     "impacts": {
       "RELIABILITY": "HIGH"

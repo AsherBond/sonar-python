@@ -88,7 +88,7 @@ class GroupByIteratorReuseCheckTest {
     assertThat(issues).hasSize(3);
     assertThat(issues).extracting(i -> i.primaryLocation().startLine()).containsExactly(12, 13, 14);
     assertThat(issues).extracting(i -> i.primaryLocation().message())
-      .containsOnly("Convert this group iterator to a list.");
+      .containsOnly("Consume this group iterator inside the loop, or materialize it into a collection.");
 
     // See fixture file header for the rationale on why no quickfix is attached.
     assertThat(issues).allSatisfy(issue -> assertThat(issue.quickFixes()).isEmpty());

@@ -18,6 +18,9 @@ package org.sonar.python.checks;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
@@ -25,13 +28,16 @@ import org.sonar.plugins.python.api.quickfix.PythonQuickFix;
 import org.sonar.plugins.python.api.symbols.v2.SymbolV2;
 import org.sonar.plugins.python.api.symbols.v2.UsageV2;
 import org.sonar.plugins.python.api.tree.ArgList;
+import org.sonar.plugins.python.api.tree.AssignmentStatement;
 import org.sonar.plugins.python.api.tree.CallExpression;
-import org.sonar.plugins.python.api.tree.ComprehensionFor;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.ForStatement;
 import org.sonar.plugins.python.api.tree.Name;
+import org.sonar.plugins.python.api.tree.QualifiedExpression;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.tree.YieldExpression;
+import org.sonar.plugins.python.api.tree.YieldStatement;
 import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
 import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.quickfix.TextEditUtils;
@@ -40,13 +46,11 @@ import org.sonar.python.tree.TreeUtils;
 @Rule(key = "S8516")
 public class GroupByIteratorReuseCheck extends PythonSubscriptionCheck {
 
-  private static final String MESSAGE = "Convert this group iterator to a list.";
+  private static final String MESSAGE = "Consume this group iterator inside the loop, or materialize it into a collection.";
   private static final String QUICK_FIX_MESSAGE = "Wrap with \"list()\"";
 
   private static final TypeMatcher GROUPBY_MATCHER = TypeMatchers.isType("itertools.groupby");
 
-  // SAFE_CONSUMER_MATCHER and CLASS_MATCHER are matched leniently (TRUE or UNKNOWN both pass) so
-  // unresolved callees don't trigger false positives.
   private static final TypeMatcher SAFE_CONSUMER_MATCHER = TypeMatchers.any(
     TypeMatchers.isType("list"),
     TypeMatchers.isType("tuple"),
@@ -57,11 +61,21 @@ public class GroupByIteratorReuseCheck extends PythonSubscriptionCheck {
     TypeMatchers.isType("max"),
     TypeMatchers.isType("min"),
     TypeMatchers.isType("any"),
-    TypeMatchers.isType("all")
+    TypeMatchers.isType("all"),
+    TypeMatchers.isType("next"),
+    TypeMatchers.isType("len"),
+    TypeMatchers.isType("str.join"),
+    TypeMatchers.isType("bytes.join")
   );
 
-  // Any class constructor that accepts an iterable invariably materializes it inside __init__
-  private static final TypeMatcher CLASS_MATCHER = TypeMatchers.isObjectOfType("type");
+  // Matches class objects produced at runtime via `type(...)` (e.g. `Cls = type(obj); Cls(group)`).
+  // Direct class references (`MyClass`) are NOT matched here
+  private static final TypeMatcher RUNTIME_CLASS_OBJECT_MATCHER = TypeMatchers.isObjectOfType("type");
+
+  // Container methods that store their argument *as a single element* without iterating it.
+  private static final Set<String> STORING_METHOD_NAMES = Set.of(
+    "append", "add", "setdefault"
+  );
 
   @Override
   public void initialize(Context context) {
@@ -70,27 +84,10 @@ public class GroupByIteratorReuseCheck extends PythonSubscriptionCheck {
 
   private static void checkForStatement(SubscriptionContext ctx) {
     ForStatement forStatement = (ForStatement) ctx.syntaxNode();
-
-    if (forStatement.testExpressions().size() != 1) {
+    Name groupName = extractGroupByLoopVariable(forStatement, ctx).orElse(null);
+    if (groupName == null) {
       return;
     }
-
-    if (!(forStatement.testExpressions().get(0) instanceof CallExpression callExpr)) {
-      return;
-    }
-
-    if (!GROUPBY_MATCHER.isTrueFor(callExpr.callee(), ctx)) {
-      return;
-    }
-
-    if (forStatement.expressions().size() != 2) {
-      return;
-    }
-
-    if (!(forStatement.expressions().get(1) instanceof Name groupName)) {
-      return;
-    }
-
     SymbolV2 groupSymbol = groupName.symbolV2();
     if (groupSymbol == null) {
       return;
@@ -98,30 +95,22 @@ public class GroupByIteratorReuseCheck extends PythonSubscriptionCheck {
 
     Tree loopBody = forStatement.body();
 
-    // If `group` is rebound anywhere in the loop body (e.g. `group = list(group)`), we can't
-    // tell from the AST alone which reads see the original iterator. We conservatively skip.
-    boolean isReboundInLoopBody = groupSymbol.usages().stream()
-      .filter(usage -> usage.kind() == UsageV2.Kind.ASSIGNMENT_LHS)
-      .map(UsageV2::tree)
-      .flatMap(TreeUtils.toStreamInstanceOfMapper(Name.class))
-      .anyMatch(reboundName -> isInside(reboundName, loopBody));
+    // Bail on any rebinding of `group` in the body to avoid requiring a CFG
+    boolean isReboundInLoopBody = namesInLoopBody(groupSymbol, loopBody,
+      usage -> usage.kind() == UsageV2.Kind.ASSIGNMENT_LHS).findAny().isPresent();
     if (isReboundInLoopBody) {
       return;
     }
 
-    List<Name> loopBodyReads = groupSymbol.usages().stream()
-      .filter(usage -> !usage.isBindingUsage())
-      .map(UsageV2::tree)
-      .flatMap(TreeUtils.toStreamInstanceOfMapper(Name.class))
-      .filter(nameUsage -> isInside(nameUsage, loopBody))
-      .toList();
+    List<Name> loopBodyReads = namesInLoopBody(groupSymbol, loopBody,
+      usage -> !usage.isBindingUsage()).toList();
 
     List<Name> unsafeReads = loopBodyReads.stream()
-      .filter(nameUsage -> !isSafeUsage(nameUsage, forStatement, ctx))
+      .filter(nameUsage -> isUnsafeRead(nameUsage, forStatement, ctx))
       .toList();
 
-    // The quickfix wraps a single occurrence in `list(...)`. We only attach it when there is
-    // exactly one read of `group` in the loop body — this does not affecting any other consumer.
+    // Quickfix only when there is a single read in the body: wrapping `group` in `list()`
+    // consumes the iterator and would silently break any other read.
     boolean canOfferQuickFix = loopBodyReads.size() == 1 && unsafeReads.size() == 1;
     for (Name nameUsage : unsafeReads) {
       var issue = ctx.addIssue(nameUsage, MESSAGE);
@@ -135,54 +124,80 @@ public class GroupByIteratorReuseCheck extends PythonSubscriptionCheck {
     }
   }
 
-  private static boolean isSafeUsage(Name nameUsage, ForStatement enclosingForStatement, SubscriptionContext ctx) {
-    // A usage inside a nested function or lambda defined in the loop body is always unsafe
-    if (isInsideNestedFunctionOrLambda(nameUsage, enclosingForStatement)) {
-      return false;
+  // Matches `for key, group in groupby(...):` and returns the `group` name
+  private static Optional<Name> extractGroupByLoopVariable(ForStatement forStatement, SubscriptionContext ctx) {
+    if (forStatement.testExpressions().size() != 1
+      || !(forStatement.testExpressions().get(0) instanceof CallExpression callExpr)
+      || !GROUPBY_MATCHER.isTrueFor(callExpr.callee(), ctx)
+      || forStatement.expressions().size() != 2
+      || !(forStatement.expressions().get(1) instanceof Name groupName)) {
+      return Optional.empty();
     }
+    return Optional.of(groupName);
+  }
 
-    if (nameUsage.parent() instanceof ComprehensionFor compFor && compFor.iterable() == nameUsage) {
+  // Recognized escape sinks: lambda/nested-function capture, assignment rvalue, yield, and
+  // positional argument of a known storing-method. Anything else is treated as safe.
+  private static boolean isUnsafeRead(Name nameUsage, ForStatement enclosingForStatement, SubscriptionContext ctx) {
+    if (isCapturedByNestedFunctionOrLambda(nameUsage, enclosingForStatement)) {
       return true;
     }
+    return reachesSink(nameUsage, ctx);
+  }
 
-    if (nameUsage.parent() instanceof ForStatement nestedFor
-      && nestedFor.testExpressions().stream().anyMatch(e -> e == nameUsage)) {
+  private static boolean reachesSink(Expression expression, SubscriptionContext ctx) {
+    Tree parent = expression.parent();
+    if (parent instanceof AssignmentStatement assign && assign.assignedValue() == expression) {
       return true;
     }
-
-    if (nameUsage.parent() instanceof RegularArgument regularArg && regularArg.keywordArgument() == null) {
-      return hasSafeConsumerAncestor(regularArg, ctx);
+    if (parent instanceof YieldExpression || parent instanceof YieldStatement) {
+      return true;
     }
-
+    // Keyword arguments are skipped (treated as safe): mapping them to the callee's parameter would
+    // require signature resolution, and iterators are overwhelmingly passed positionally in practice.
+    if (parent instanceof RegularArgument regularArg && regularArg.keywordArgument() == null) {
+      return chainReachesSink(regularArg, ctx);
+    }
     return false;
   }
 
-  // We raise when the group iterator escapes the current iteration and is read after the outer
-  // `groupby` advances. A positional-arg call chain ending in a safe consumer cannot escape.
-  private static boolean hasSafeConsumerAncestor(RegularArgument regularArg, SubscriptionContext ctx) {
-    Optional<CallExpression> currentCall = owningCall(regularArg);
-    while (currentCall.isPresent()) {
-      CallExpression call = currentCall.get();
-      if (isSafeConsumerCallee(call.callee(), ctx)) {
-        return true;
-      }
-      if (!(call.parent() instanceof RegularArgument outerArg) || outerArg.keywordArgument() != null) {
-        return false;
-      }
-      currentCall = owningCall(outerArg);
+  private static boolean chainReachesSink(RegularArgument arg, SubscriptionContext ctx) {
+    CallExpression call = owningCall(arg).orElse(null);
+    if (call == null) {
+      return false;
     }
-    return false;
+    if (isSafeConsumerCallee(call.callee(), ctx)) {
+      return false;
+    }
+    if (isStoringMethodCall(call)) {
+      return true;
+    }
+    return reachesSink(call, ctx);
   }
 
   private static boolean isSafeConsumerCallee(Expression callee, SubscriptionContext ctx) {
     return !SAFE_CONSUMER_MATCHER.evaluateFor(callee, ctx).isFalse()
-      || !CLASS_MATCHER.evaluateFor(callee, ctx).isFalse();
+      || !RUNTIME_CLASS_OBJECT_MATCHER.evaluateFor(callee, ctx).isFalse();
   }
 
-  private static boolean isInsideNestedFunctionOrLambda(Name nameUsage, ForStatement enclosingForStatement) {
+  // Name-only on purpose: gating on the receiver type would silently miss the case where the
+  // receiver's type cannot be resolved. Middle ground between FP risk and raising actual issues.  
+  private static boolean isStoringMethodCall(CallExpression call) {
+    return call.callee() instanceof QualifiedExpression qualified
+      && STORING_METHOD_NAMES.contains(qualified.name().name());
+  }
+
+  private static boolean isCapturedByNestedFunctionOrLambda(Name nameUsage, ForStatement enclosingForStatement) {
     Tree functionLikeAncestor = TreeUtils.firstAncestorOfKind(nameUsage, Tree.Kind.FUNCDEF, Tree.Kind.LAMBDA);
-    return functionLikeAncestor != null
-      && isInside(functionLikeAncestor, enclosingForStatement.body());
+    return functionLikeAncestor != null && isInside(functionLikeAncestor, enclosingForStatement.body());
+  }
+
+  private static Stream<Name> namesInLoopBody(SymbolV2 symbol, Tree loopBody, Predicate<UsageV2> usageFilter) {
+    return symbol.usages().stream()
+      .filter(usageFilter)
+      .map(UsageV2::tree)
+      .flatMap(TreeUtils.toStreamInstanceOfMapper(Name.class))
+      .filter(name -> isInside(name, loopBody));
   }
 
   private static boolean isInside(Tree tree, Tree container) {
