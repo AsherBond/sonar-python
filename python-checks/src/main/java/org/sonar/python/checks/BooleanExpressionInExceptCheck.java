@@ -41,6 +41,10 @@ public class BooleanExpressionInExceptCheck extends PythonSubscriptionCheck {
   public static final String MESSAGE = "Rewrite this \"except\" expression as a tuple of exception classes.";
   public static final String QUICK_FIX_MESSAGE = "Replace with a tuple";
 
+  private static final Kind[] FLAGGED_BINARY_KINDS = {
+    Kind.OR, Kind.AND, Kind.BITWISE_OR, Kind.BITWISE_AND
+  };
+
   @Override
   public void initialize(Context context) {
     context.registerSyntaxNodeConsumer(Kind.EXCEPT_CLAUSE, BooleanExpressionInExceptCheck::checkExceptClause);
@@ -52,7 +56,7 @@ public class BooleanExpressionInExceptCheck extends PythonSubscriptionCheck {
     Optional.of(except)
       .map(ExceptClause::exception)
       .map(Expressions::removeParentheses)
-      .filter(exception -> exception.is(Kind.OR, Kind.AND))
+      .filter(exception -> exception.is(FLAGGED_BINARY_KINDS))
       .ifPresent(exception -> {
         var issue = ctx.addIssue(exception, MESSAGE);
         addQuickFix(issue, exception);
@@ -61,7 +65,7 @@ public class BooleanExpressionInExceptCheck extends PythonSubscriptionCheck {
 
   private static List<String> collectNames(Expression expression) {
     expression = Expressions.removeParentheses(expression);
-    if (expression.is(Kind.OR, Kind.AND)) {
+    if (expression.is(FLAGGED_BINARY_KINDS)) {
       var binaryExpression = (BinaryExpression) expression;
       var leftExceptions = collectNames(binaryExpression.leftOperand());
       var rightExceptions = collectNames(binaryExpression.rightOperand());

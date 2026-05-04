@@ -75,6 +75,54 @@ class BooleanExpressionInExceptCheckTest {
   }
 
   @Test
+  void bitwiseOrQuickFixTest() {
+    var before = """
+      try:
+          foo()
+      except ValueError | TypeError | SomeError:
+          pass""";
+
+    var after = """
+      try:
+          foo()
+      except (ValueError, TypeError, SomeError):
+          pass""";
+    verifyQuickFix(before, after);
+  }
+
+  @Test
+  void bitwiseAndQuickFixTest() {
+    var before = """
+      try:
+          foo()
+      except ValueError & TypeError & SomeError:
+          pass""";
+
+    var after = """
+      try:
+          foo()
+      except (ValueError, TypeError, SomeError):
+          pass""";
+    verifyQuickFix(before, after);
+  }
+
+  @Test
+  void mixedOperatorsQuickFixTest() {
+    var before = """
+      try:
+          foo()
+      except (ValueError | TypeError) and SomeError:
+          pass""";
+
+    var after = """
+      try:
+          foo()
+      except (ValueError, TypeError, SomeError):
+          pass""";
+    verifyQuickFix(before, after);
+  }
+
+  @Test
   void noQuickFixTest() {
     var before = """
       try:
