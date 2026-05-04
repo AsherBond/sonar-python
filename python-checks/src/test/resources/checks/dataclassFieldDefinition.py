@@ -193,3 +193,21 @@ class ParentDataclass:
 
 class NonDataclassChild(ParentDataclass):
     unannotated = 99
+
+
+# ALL_CAPS names follow the Python constant convention and are intentional class-level attributes
+@dataclass
+class AllCapsConstants:
+    MAX_RETRIES = 5
+    DEFAULT_TIMEOUT = 30
+    BASE_URL = "https://example.com"
+
+
+# Names starting with _ are considered intentional private/special attributes
+@dataclass
+class UnderscorePrefixedAttributes:
+    _private = "value"
+    __slots__ = ['x', 'y']
+    __tablename__ = "users"
+    __abstract__ = True
+    _PRIVATE_CONST = 42

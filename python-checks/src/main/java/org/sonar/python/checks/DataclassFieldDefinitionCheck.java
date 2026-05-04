@@ -16,6 +16,7 @@
  */
 package org.sonar.python.checks;
 
+import java.util.List;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
@@ -24,6 +25,8 @@ import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.ClassDef;
 import org.sonar.plugins.python.api.tree.Decorator;
 import org.sonar.plugins.python.api.tree.Expression;
+import org.sonar.plugins.python.api.tree.ExpressionList;
+import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
 import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
@@ -63,8 +66,37 @@ public class DataclassFieldDefinitionCheck extends PythonSubscriptionCheck {
   }
 
   private static void checkStatement(SubscriptionContext ctx, Tree statement) {
-    if (statement instanceof AssignmentStatement assignmentStatement) {
+    if (statement instanceof AssignmentStatement assignmentStatement && !isLikelyIntentionalClassVar(assignmentStatement)) {
       ctx.addIssue(assignmentStatement, MESSAGE_MISSING_ANNOTATION);
     }
+  }
+
+  private static boolean isLikelyIntentionalClassVar(AssignmentStatement assignment) {
+    List<ExpressionList> lhsList = assignment.lhsExpressions();
+    if (lhsList.size() != 1) {
+      return false;
+    }
+    List<Expression> expressions = lhsList.get(0).expressions();
+    if (expressions.size() != 1 || !expressions.get(0).is(Tree.Kind.NAME)) {
+      return false;
+    }
+    String name = ((Name) expressions.get(0)).name();
+    return name.startsWith("_") || isAllCaps(name);
+  }
+
+  // ALL_CAPS names follow the Python constant convention — they are intentional class-level attributes.
+  private static boolean isAllCaps(String name) {
+    if (name.isEmpty()) {
+      return false;
+    }
+    boolean hasUpperCase = false;
+    for (char c : name.toCharArray()) {
+      if (Character.isUpperCase(c)) {
+        hasUpperCase = true;
+      } else if (!Character.isDigit(c) && c != '_') {
+        return false;
+      }
+    }
+    return hasUpperCase;
   }
 }
