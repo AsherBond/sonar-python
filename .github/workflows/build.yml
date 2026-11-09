@@ -60,8 +60,6 @@ jobs:
 
       - name: Setup UV
         uses: SonarSource/ci-github-actions/config-uv@v2
-      - name: Point uv at Repox
-        run: echo "UV_DEFAULT_INDEX=repox=https://repox-internal.sonar.build/artifactory/api/pypi/sonarsource-pypi/simple" >> "$GITHUB_ENV"
 
       - name: Analyze
         uses: ./.github-commons/actions/analyze

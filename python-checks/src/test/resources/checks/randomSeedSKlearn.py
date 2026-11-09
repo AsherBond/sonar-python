@@ -65,5 +65,6 @@ def ambiguous():
     from sklearn.svm import SVC as something
     from sklearn.datasets import make_blobs as something
 
-    something = something() # FN
+    # V2 resolves the final import.
+    something = something() # Noncompliant
 

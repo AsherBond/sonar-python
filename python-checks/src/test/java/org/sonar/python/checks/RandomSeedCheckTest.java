@@ -16,11 +16,26 @@
  */
 package org.sonar.python.checks;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.sonar.python.checks.utils.PythonCheckVerifier;
 
 class RandomSeedCheckTest {
   RandomSeedCheck check = new RandomSeedCheck();
+
+  @Test
+  void test_migration() {
+    PythonCheckVerifier.verify("src/test/resources/checks/randomSeedMigration.py", check);
+  }
+
+  @Test
+  void test_project_migration() {
+    String root = "src/test/resources/checks/randomSeedMigrationProject/";
+    PythonCheckVerifier.verify(List.of(root + "usage.py", root + "sklearn/__init__.py",
+      root + "sklearn/linear_model/__init__.py", root + "sklearn/linear_model/_coordinate_descent.py",
+      root + "sklearn/datasets/__init__.py", root + "sklearn/datasets/_samples_generator.py",
+      root + "sklearn/datasets/usage.py"), check);
+  }
 
   @Test
   void test_numpy() {

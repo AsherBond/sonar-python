@@ -19,26 +19,25 @@ package org.sonar.python.checks;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.FunctionSymbol;
-import org.sonar.plugins.python.api.symbols.Symbol;
-import org.sonar.plugins.python.api.symbols.Symbol.Kind;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.RegularArgument;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.tree.StringLiteral;
+import org.sonar.plugins.python.api.types.v2.ClassType;
+import org.sonar.plugins.python.api.types.v2.FunctionType;
+import org.sonar.plugins.python.api.types.v2.FullyQualifiedNameHelper;
+import org.sonar.plugins.python.api.types.v2.PythonType;
 import org.sonar.python.checks.cdk.CdkPredicate;
-import org.sonar.python.semantic.ClassSymbolImpl;
-import org.sonar.python.semantic.SymbolUtils;
+import org.sonar.python.checks.utils.ReachingValues;
 import org.sonar.python.tree.TreeUtils;
-import org.sonar.python.types.v2.TypeCheckMap;
-
-import static org.sonar.python.checks.hotspots.CommonValidationUtils.singleAssignedString;
 
 @Rule(key = "S6709")
 public class RandomSeedCheck extends PythonSubscriptionCheck {
@@ -62,94 +61,78 @@ public class RandomSeedCheck extends PythonSubscriptionCheck {
   private static final String MESSAGE = "Provide a seed for this random generator.";
   private static final String SKLEARN_MESSAGE = "Provide a seed for the random_state parameter.";
 
-  private static Predicate<CallExpression> keywordAbsentOrNotIn(String keyword, String... restrictedValues) {
+  private static BiPredicate<CallExpression, SubscriptionContext> keywordAbsentOrNotIn(String keyword, String... restrictedValues) {
     Set<String> restrictedValueSet = Set.of(restrictedValues);
-    return call -> {
+    return (call, ctx) -> {
       var arg = TreeUtils.argumentByKeyword(keyword, call.arguments());
       if (arg == null) {
         return true;
       }
-      String expressionString = singleAssignedString(arg.expression());
+      String expressionString = singleStringValue(arg.expression(), ctx);
       return restrictedValueSet.stream().noneMatch(expressionString::equals);
     };
   }
-  private static Predicate<CallExpression> probabilityArgAbsent() {
-    return call -> {
+  private static BiPredicate<CallExpression, SubscriptionContext> probabilityArgAbsent() {
+    return (call, ctx) -> {
       var probabilityArg = TreeUtils.argumentByKeyword("probability", call.arguments());
       return probabilityArg == null || CdkPredicate.isFalse().test(probabilityArg.expression());
     };
   }
 
-  private static final Predicate<CallExpression> SOLVER_NOT_SAG_SAGA = keywordAbsentOrNotIn("solver", "sag", "saga");
-  private static final Predicate<CallExpression> SELECTION_NOT_RANDOM = keywordAbsentOrNotIn("selection", "random");
+  private static final BiPredicate<CallExpression, SubscriptionContext> SOLVER_NOT_SAG_SAGA = keywordAbsentOrNotIn("solver", "sag", "saga");
+  private static final BiPredicate<CallExpression, SubscriptionContext> SELECTION_NOT_RANDOM = keywordAbsentOrNotIn("selection", "random");
 
-  private static final Map<String, Predicate<CallExpression>> SKLEARN_EXCEPTIONS = Map.ofEntries(
+  private static final Map<String, BiPredicate<CallExpression, SubscriptionContext>> SKLEARN_EXCEPTIONS = Map.ofEntries(
     Map.entry("sklearn.svm._classes.SVC", probabilityArgAbsent()),
     Map.entry("sklearn.linear_model._logistic.LogisticRegression", SOLVER_NOT_SAG_SAGA),
     Map.entry("sklearn.linear_model._ridge.Ridge", SOLVER_NOT_SAG_SAGA),
     Map.entry("sklearn.linear_model._coordinate_descent.Lasso", SELECTION_NOT_RANDOM),
     Map.entry("sklearn.linear_model._coordinate_descent.ElasticNet", SELECTION_NOT_RANDOM));
 
-  private TypeCheckMap<Predicate<CallExpression>> typeCheckMap;
-
   @Override
   public void initialize(Context context) {
-    context.registerSyntaxNodeConsumer(Tree.Kind.FILE_INPUT,
-      ctx -> {
-        this.typeCheckMap = new TypeCheckMap<>();
-        SKLEARN_EXCEPTIONS.forEach((fqn, predicate) -> this.typeCheckMap.put(ctx.typeChecker().typeCheckBuilder().isTypeWithFqn(fqn), predicate));
-      });
-    context.registerSyntaxNodeConsumer(Tree.Kind.CALL_EXPR, this::checkEmptySeedCall);
+    context.registerSyntaxNodeConsumer(Tree.Kind.CALL_EXPR, RandomSeedCheck::checkEmptySeedCall);
   }
 
-  private void checkEmptySeedCall(SubscriptionContext ctx) {
+  private static void checkEmptySeedCall(SubscriptionContext ctx) {
     CallExpression call = (CallExpression) ctx.syntaxNode();
-
-    Optional<Symbol> maybeCalleeSymbol = Optional.ofNullable(call.calleeSymbol());
-
-    maybeCalleeSymbol
-      .map(Symbol::fullyQualifiedName)
+    PythonType calleeType = call.callee().typeV2();
+    // NumPy stubs are excluded from serialization. The V2 helper also supports unresolved imports.
+    Optional<String> calleeName = FullyQualifiedNameHelper.getFullyQualifiedName(calleeType);
+    calleeName
       .map(SEED_METHODS_TO_CHECK::get)
       .filter(argName -> isArgumentAbsentOrNone(TreeUtils.nthArgumentOrKeyword(0, argName, call.arguments()), ctx))
       .map(arg -> MESSAGE)
-      .or(() -> maybeCalleeSymbol
-        .filter(symbol -> symbol.fullyQualifiedName() != null && symbol.fullyQualifiedName().startsWith(SKLEARN_FQN))
-        .filter(RandomSeedCheck::hasRandomStateParameter)
-        .filter(symbol -> isArgumentAbsentOrNone(TreeUtils.argumentByKeyword(SKLEARN_ARG_NAME, call.arguments()), ctx))
-        .filter(symbol -> !isSKLearnException(call))
-        .map(symbol -> SKLEARN_MESSAGE))
+      .or(() -> calleeName
+        .filter(name -> name.startsWith(SKLEARN_FQN))
+        .filter(name -> !(calleeType instanceof FunctionType function
+          && function.isInstanceMethod() && "__init__".equals(function.name())))
+        .filter(name -> isArgumentAbsentOrNone(TreeUtils.argumentByKeyword(SKLEARN_ARG_NAME, call.arguments()), ctx))
+        .filter(name -> hasRandomStateParameter(calleeType))
+        .filter(name -> !isSKLearnException(name, call, ctx))
+        .map(name -> SKLEARN_MESSAGE))
       .ifPresent(message -> ctx.addIssue(call.callee(), message));
   }
 
-  private static boolean hasRandomStateParameter(Symbol calleeSymbol) {
-    return isClassInstantiationWithRandomStateParameter(calleeSymbol)
-      .or(() -> isFunctionWithRandomStateParameter(calleeSymbol))
-      .orElse(false);
+  private static boolean hasRandomStateParameter(PythonType type) {
+    if (type instanceof ClassType classType) {
+      var constructors = classType.members().stream().filter(member -> "__init__".equals(member.name())).toList();
+      return constructors.size() == 1 && hasRandomStateParameter(constructors.get(0).type());
+    }
+    return type instanceof FunctionType function && function.parameters().stream()
+      .anyMatch(parameter -> SKLEARN_ARG_NAME.equals(parameter.name()));
   }
 
-  private static Optional<Boolean> isClassInstantiationWithRandomStateParameter(Symbol calleeSymbol) {
-    return Optional.of(calleeSymbol)
-      .filter(s -> s.is(Kind.CLASS))
-      .map(ClassSymbolImpl.class::cast)
-      .map(classSymbol -> classSymbol.declaredMembers()
-        .stream()
-        .filter(member -> "__init__".equals(member.name()))
-        .toList())
-      .filter(members -> members.size() == 1)
-      .map(members -> members.get(0))
-      .map(RandomSeedCheck::hasRandomStateParameter);
-  }
-
-  private static Optional<Boolean> isFunctionWithRandomStateParameter(Symbol calleeSymbol) {
-    return Optional.of(calleeSymbol)
-      .filter(s1 -> s1.is(Kind.FUNCTION))
-      .map(SymbolUtils::getFunctionSymbols)
-      .filter(symbols -> symbols.size() == 1)
-      .map(symbols -> symbols.get(0))
-      .map(symbol -> symbol.parameters()
-        .stream()
-        .map(FunctionSymbol.Parameter::name)
-        .anyMatch(SKLEARN_ARG_NAME::equals));
+  private static String singleStringValue(Expression expression, SubscriptionContext ctx) {
+    Set<Expression> values = ReachingValues.resolvedValues(expression, ctx);
+    if (values.size() != 1) {
+      return "";
+    }
+    Expression value = values.iterator().next();
+    if (value instanceof StringLiteral literal) {
+      return literal.trimmedQuotesValue();
+    }
+    return "";
   }
 
   private static boolean isArgumentAbsentOrNone(@Nullable RegularArgument arg, SubscriptionContext ctx) {
@@ -164,10 +147,8 @@ public class RandomSeedCheck extends PythonSubscriptionCheck {
       .filter(values -> values.stream().allMatch(value -> value.is(Tree.Kind.NONE))).isPresent();
   }
 
-  private boolean isSKLearnException(CallExpression call) {
-    var calleeType = call.callee().typeV2();
-    return typeCheckMap.getOptionalForType(calleeType)
-      .map(predicate -> predicate.test(call))
-      .orElse(false);
+  private static boolean isSKLearnException(String calleeName, CallExpression call, SubscriptionContext ctx) {
+    var exception = SKLEARN_EXCEPTIONS.get(calleeName);
+    return exception != null && exception.test(call, ctx);
   }
 }
